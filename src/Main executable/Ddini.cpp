@@ -151,23 +151,36 @@ __declspec( dllexport ) void FlipPages( void )
 	int	ly = RealLy;
 	int	addOf = SCRSizeX - ( lx << 2 );
 	int RaddOf = RSCRSizeX - ( lx << 2 );
-	__asm 
+	// BoonXRay 06.08.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		mov		esi, ScreenPtr
-		mov		edi, RealScreenPtr
-		add		esi, ofs
-		add		edi, ofs
-		cld
-		mov		eax, ly
-		xxx :
-		mov		ecx, lx
-			rep		movsd
-			add		esi, addOf
-			add		edi, RaddOf
-			dec		eax
-			jnz		xxx
+		//push	esi
+		//push	edi
+		//mov		esi, ScreenPtr
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(ScreenPtr);
+		//mov		edi, RealScreenPtr
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(RealScreenPtr);
+		//add		esi, ofs
+		TmpESI += ofs;
+		//add		edi, ofs
+		TmpEDI += ofs;
+		//cld
+		//mov		eax, ly
+		unsigned int TmpEAX = ly, TmpECX = 0;
+	xxx :
+		//mov		ecx, lx
+		TmpECX = lx;
+		//rep		movsd
+		for (unsigned int i = 0; i < TmpECX; i++, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+			*reinterpret_cast<int *>(TmpEDI) = *reinterpret_cast<int *>(TmpESI);
+		//add		esi, addOf
+		TmpESI += addOf;
+		//add		edi, RaddOf
+		TmpEDI += RaddOf;
+		//dec		eax
+		TmpEAX--;
+		//jnz		xxx
+		if (TmpEAX != 0) goto xxx;
 	}
 
 	/*

@@ -34,46 +34,67 @@ void SortClass::Sort() {
 	int nuids = NUids - 1;
 	byte fault;
 
-	__asm {
-		push    esi
-		push    edi
-		mov     esi, uids
-		mov     edi, parms
-		mov     ecx, nuids
-		lpp1 :
-		//mov     eax,sns
-		//mov     snsn,eax
-		xor     eax, eax
-			mov     esi, uids
-			mov     edi, parms
-			mov     ecx, nuids
-			mov     ecx, nuids
-			mov     fault, 0
-			lpp3:
-		mov     ebx, [edi]
-			mov     edx, [edi + 4]
-			cmp     ebx, edx
-			jle     lpp2
-			mov[edi], edx
-			mov[edi + 4], ebx
-			//xchg    ebx,snsn
-			//mov     dx,[ebx]
-			//xchg    dx,[ebx+2]
-			//mov     [ebx],dx
-			//xchg    ebx,snsn
-			mov     bx, [esi]
-			xchg    bx, [esi + 2]
-			mov[esi], bx
-			mov     fault, 1
-			lpp2:   add     esi, 2
-			add     edi, 4
-			//add     snsn,2
-			dec     ecx
-			jnz     lpp3
-			cmp     fault, 0
-			jnz      lpp1
-			pop     esi
-			pop     edi
+	// BoonXRay 12.08.2017
+	//__asm 
+	{
+		//push    esi
+		//push    edi
+		//mov     esi, uids
+		//mov     edi, parms
+		//mov     ecx, nuids
+		int TmpESI = uids;
+		int TmpEDI = parms;
+		int TmpECX = nuids;
+		int TmpEAX = 0, TmpEBX = 0, TmpEDX = 0;
+		short & TmpBX = *reinterpret_cast<short *>(&TmpEBX);
+	lpp1 :
+		//xor     eax, eax
+		//mov     esi, uids
+		//mov     edi, parms
+		//mov     ecx, nuids
+		//mov     ecx, nuids
+		//mov     fault, 0
+		TmpEAX = 0;
+		TmpESI = uids;
+		TmpEDI = parms;
+		TmpECX = nuids;
+		fault = 0;
+	lpp3:
+		//mov     ebx, [edi]
+		//mov     edx, [edi + 4]
+		//cmp     ebx, edx
+		//jle     lpp2
+		TmpEBX = *reinterpret_cast<int *>(TmpEDI);
+		TmpEDX = *reinterpret_cast<int *>(TmpEDI + 4);
+		if (TmpEBX <= TmpEDX) goto lpp2;
+		//mov[edi], edx
+		//mov[edi + 4], ebx
+		//mov     bx, [esi]
+		*reinterpret_cast<int *>(TmpEDI) = TmpEDX;
+		*reinterpret_cast<int *>(TmpEDI + 4) = TmpEBX;
+		TmpBX = *reinterpret_cast<short *>(TmpESI);
+		//xchg    bx, [esi + 2]
+		//mov[esi], bx
+		//mov     fault, 1
+		short TmpUShort = *reinterpret_cast<short *>(TmpESI + 2);
+		*reinterpret_cast<short *>(TmpESI + 2) = TmpBX;
+		TmpBX = TmpUShort;
+		*reinterpret_cast<short *>(TmpESI) = TmpBX;
+		fault = 1;
+	lpp2:   
+		//add     esi, 2
+		//add     edi, 4
+		//dec     ecx
+		//jnz     lpp3
+		//cmp     fault, 0
+		//jnz      lpp1
+		TmpESI += 2;
+		TmpEDI += 4;
+		TmpECX--;
+		if (TmpECX != 0) goto lpp3;
+		if (fault != 0) goto lpp1;
+		//pop     esi
+		//pop     edi
 	};
 };
 void SortClass::CheckSize(int Size) {

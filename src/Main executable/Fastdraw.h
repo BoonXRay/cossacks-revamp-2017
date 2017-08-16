@@ -91,8 +91,6 @@ public:
 
 typedef RLCFont* lpRLCFont;
 
-void SetScreenPtr(void);
-
 int GetRLCWidth(RLCTable lpr, byte n);
 
 __declspec(dllexport) void SetRLCWindow(int x, int y, int lx, int ly, int slx);
@@ -112,9 +110,6 @@ FASTDRAW_API void ClearScreen();
 FASTDRAW_API void ShowString(int x, int y, LPCSTR lps, lpRLCFont lpf);
 FASTDRAW_API void RegisterRLCFont(lpRLCFont lrf, RLCTable lpr, int fir);
 FASTDRAW_API void LoadPalettes();
-FASTDRAW_API void StoreWindow();
-FASTDRAW_API void RestoreWindow();
-FASTDRAW_API void SetWind(int x, int y, int Lx, int Ly);
 FASTDRAW_API int GetRLCStrWidth(char* str, lpRLCFont lpf);
 FASTDRAW_API void CheckFontColor(lpRLCFont lpf);
 FASTDRAW_API void LoadOptionalTable(int n, char* Name);

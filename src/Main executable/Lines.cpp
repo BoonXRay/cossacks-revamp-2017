@@ -19,15 +19,19 @@ void Hline(int x,int y,int xend,byte c){
 		if(xend<WindX)xr=WindX; else xr=xend;
 		if(x>WindX1)Lxr=WindX1-xr+1;else Lxr=x-xr+1;
 	};
-	int scr=int(ScreenPtr)+xr+y*ScrWidth;
+	// BoonXRay 12.08.2017
+	//int scr=int(ScreenPtr)+xr+y*ScrWidth;
+
 	if(Lxr<=0)return;
-	__asm{
-		mov		edi,scr
-		mov		al,c
-		mov		ecx,Lxr
-		cld
-		rep		stosb
-	};
+	// BoonXRay 12.08.2017
+	//__asm{
+	//	mov		edi,scr
+	//	mov		al,c
+	//	mov		ecx,Lxr
+	//	cld
+	//	rep		stosb
+	//};
+	memset(reinterpret_cast<unsigned char *>(ScreenPtr) + xr + y*ScrWidth, c, Lxr);
 };
 void Vline(int x,int y,int yend,byte c){
 	if(x<WindX||x>WindX1)return;
@@ -43,19 +47,24 @@ void Vline(int x,int y,int yend,byte c){
 		if(yend<WindY)yr=WindY; else yr=yend;
 		if(y>WindY1)Lyr=WindY1-yr+1;else Lyr=y-yr+1;
 	};
-	int scr=int(ScreenPtr)+x+yr*ScrWidth;
+	// BoonXRay 12.08.2017
+	//int scr=int(ScreenPtr)+x+yr*ScrWidth;
 	if(Lyr<=0)return;
-	__asm{
-		mov		edi,scr
-		mov		al,c
-		mov		ecx,Lyr
-		mov		edx,ScrWidth
-		dec		edx
-		cld
-uuuuu:	stosb
-		add		edi,edx
-		loop	uuuuu
-	};
+	// BoonXRay 12.08.2017
+//	__asm{
+//		mov		edi,scr
+//		mov		al,c
+//		mov		ecx,Lyr
+//		mov		edx,ScrWidth
+//		dec		edx
+//		cld
+//uuuuu:	stosb
+//		add		edi,edx
+//		loop	uuuuu
+//	};
+	unsigned char * Ptr = reinterpret_cast<unsigned char *>(ScreenPtr)+x + yr*ScrWidth;
+	for (int i = 0; i < Lyr; i++, Ptr += ScrWidth)
+		*Ptr = c;
 };
 void Xbar(int x,int y,int lx,int ly,byte c){
 	Hline(x,y,x+lx-1,c);
@@ -121,88 +130,145 @@ void DrawLine(int x,int y,int x1,int y1,byte c){
 	if(y<y1){
 		Ly=y1-y;
 		if(Lx<Ly){
-			__asm{
-				push	edi
-				mov		edi,ofst
-				mov		edx,Lx
-				mov		ebx,Ly
-				sar		ebx,1
-				mov		ecx,Ly
-				inc     ecx
-				mov		al,c
-lpp1:			mov		[edi],al
-				add		edi,ScrWidth
-				sub		ebx,edx
-				jg		lpp2
-				add		ebx,Ly
-				inc     edi
-lpp2:			dec		ecx
-				jnz		lpp1
-				pop		edi
+			// BoonXRay 12.08.2017
+			//__asm 
+			{
+				//push	edi
+				//mov		edi, ofst
+				//mov		edx, Lx
+				//mov		ebx, Ly
+				//sar		ebx, 1
+				//mov		ecx, Ly
+				//inc     ecx
+				//mov		al, c
+				int TmpEDI = ofst;
+				int TmpEDX = Lx, TmpEBX = Ly >> 1, TmpECX = Ly + 1;
+			lpp1 : 
+				//mov[edi], al
+				//add		edi, ScrWidth
+				//sub		ebx, edx
+				//jg		lpp2
+				//add		ebx, Ly
+				//inc     edi
+				*reinterpret_cast<unsigned char *>(TmpEDI) = c;
+				TmpEDI += ScrWidth;
+				TmpEBX -= TmpEDX;
+				if (TmpEBX > 0) goto lpp2;
+				TmpEBX += Ly;
+				TmpEDI++;
+			lpp2 :
+				//dec		ecx
+				//jnz		lpp1
+				//pop		edi
+				TmpECX--;
+				if (TmpECX != 0) goto lpp1;
 			};
 		}else{
-			__asm{
-				push	edi
-				mov		edi,ofst
-				mov		edx,Ly
-				mov		ebx,Lx
-				sar		ebx,1
-				mov		ecx,Lx
-				inc     ecx
-				mov		al,c
-lpp1_1:			mov		[edi],al
-				inc		edi
-				sub		ebx,edx
-				jg		lpp2_1
-				add		ebx,Lx
-				add		edi,ScrWidth
-lpp2_1:			dec		ecx
-				jnz		lpp1_1
-				pop		edi
+			// BoonXRay 12.08.2017
+			//__asm 
+			{
+				//push	edi
+				//mov		edi, ofst
+				//mov		edx, Ly
+				//mov		ebx, Lx
+				//sar		ebx, 1
+				//mov		ecx, Lx
+				//inc     ecx
+				//mov		al, c
+				int TmpEDI = ofst;
+				int TmpEDX = Ly, TmpEBX = Lx >> 1, TmpECX = Lx + 1;
+			lpp1_1 : 
+				//mov[edi], al
+				//inc		edi
+				//sub		ebx, edx
+				//jg		lpp2_1
+				//add		ebx, Lx
+				//add		edi, ScrWidth
+				*reinterpret_cast<unsigned char *>(TmpEDI) = c;
+				TmpEDI++;
+				TmpEBX -= TmpEDX;
+				if (TmpEBX > 0) goto lpp2_1;
+				TmpEBX += Lx;
+				TmpEDI += ScrWidth;
+			lpp2_1 : 
+				//dec		ecx
+				//jnz		lpp1_1
+				//pop		edi
+				TmpECX--;
+				if (TmpECX != 0) goto lpp1_1;
 			};
 		};
 	}else{
 		Ly=y-y1;
 		if(Lx<Ly){
-			__asm{
-				push	edi
-				mov		edi,ofst
-				mov		edx,Lx
-				mov		ebx,Ly
-				sar		ebx,1
-				mov		ecx,Ly
-				inc     ecx
-				mov		al,c
-lpp1_2:			mov		[edi],al
-				sub		edi,ScrWidth
-				sub		ebx,edx
-				jg		lpp2_2
-				add		ebx,Ly
-				inc     edi
-lpp2_2:			dec		ecx
-				jnz		lpp1_2
-				pop		edi
+			// BoonXRay 12.08.2017
+			//__asm 
+			{
+				//push	edi
+				//mov		edi, ofst
+				//mov		edx, Lx
+				//mov		ebx, Ly
+				//sar		ebx, 1
+				//mov		ecx, Ly
+				//inc     ecx
+				//mov		al, c
+				int TmpEDI = ofst;
+				int TmpEDX = Lx, TmpEBX = Ly >> 1, TmpECX = Ly + 1;
+			lpp1_2 : 
+				//mov[edi], al
+				//sub		edi, ScrWidth
+				//sub		ebx, edx
+				//jg		lpp2_2
+				//add		ebx, Ly
+				//inc     edi
+				*reinterpret_cast<unsigned char *>(TmpEDI) = c;
+				TmpEDI -= ScrWidth;
+				TmpEBX -= TmpEDX;
+				if (TmpEBX > 0) goto lpp2_2;
+				TmpEBX += Ly;
+				TmpEDI++;
+			lpp2_2 : 
+				//dec		ecx
+				//jnz		lpp1_2
+				//pop		edi
+				TmpECX--;
+				if (TmpECX != 0) goto lpp1_2;
 			};
 		}else{
-			__asm{
-				push	edi
-				mov		edi,ofst
-				mov		edx,Ly
-				mov		ebx,Lx
-				sar		ebx,1
-				mov		ecx,Lx
-				inc     ecx
-				mov		al,c
-lpp1_3:			mov		[edi],al
-				inc		edi
-				sub		ebx,edx
-				jg		lpp2_3
-				add		ebx,Lx
-				sub		edi,ScrWidth
-lpp2_3:			dec		ecx
-				jnz		lpp1_3
-				pop		edi
+			// BoonXRay 12.08.2017
+			//__asm 
+			{
+				//push	edi
+				//mov		edi, ofst
+				//mov		edx, Ly
+				//mov		ebx, Lx
+				//sar		ebx, 1
+				//mov		ecx, Lx
+				//inc     ecx
+				//mov		al, c
+				int TmpEDI = ofst;
+				int TmpEDX = Ly, TmpEBX = Lx >> 1, TmpECX = Lx + 1;
+			lpp1_3 : 
+				//mov[edi], al
+				//inc		edi
+				//sub		ebx, edx
+				//jg		lpp2_3
+				//add		ebx, Lx
+				//sub		edi, ScrWidth
+				*reinterpret_cast<unsigned char *>(TmpEDI) = c;
+				TmpEDI++;
+				TmpEBX -= TmpEDX;
+				if (TmpEBX > 0) goto lpp2_3;
+				TmpEBX += Lx;
+				TmpEDI -= ScrWidth;
+			lpp2_3 : 
+				//dec		ecx
+				//jnz		lpp1_3
+				//pop		edi
+				TmpECX--;
+				if (TmpECX != 0) goto lpp1_3;
 			};
+
 		};
 	};
 };

@@ -68,8 +68,6 @@ int mul3( int );
 
 int FogMode;
 
-void ShowSuperFog();
-
 #define FMSX_C 134
 #define FMSX2_C (2*FMSX_C)
 
@@ -83,43 +81,72 @@ void ProcessFog1_1()
 	int fDH = ( mlx << 1 ) - 2;
 
 	byte z = 1;
-
-	__asm
+	// BoonXRay 10.08.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		mov		esi, fmap1
-		mov		edi, fmap
-		mov		ebx, fDV
-		mov		ecx, mlx
-		inc		ecx
+		//push	esi
+		//push	edi
+		//mov		esi, fmap1
+		//mov		edi, fmap
+		//mov		ebx, fDV
+		//mov		ecx, mlx
+		//inc		ecx
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(fmap1);
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(fmap);
+		unsigned int TmpEBX = fDV;
+		unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		unsigned char & TmpBH = *(reinterpret_cast<unsigned char *>(&TmpEBX) + 1);
+		unsigned int TmpECX = mlx + 1;
+		unsigned short TmpAX = 0, TmpDX = 0;
 
-		xor		ebx, ebx
-		mov		bl, byte ptr mlx
-		mov		bh, byte ptr mly
-		dec		bl
-		dec		bh
-		mov		ecx, 2 + FMSX2_C
-		lab4 : mov		dx, [esi + ecx - FMSX2_C]
-			   add		dx, [esi + ecx + FMSX2_C]
-			   add		dx, [esi + ecx - 2]
-			   add		dx, [esi + ecx + 2]
-			   mov		ax, dx
-			   shr		ax, 2
-			   shr		dx, 10
-			   sub		ax, dx
-			   mov		word ptr[edi + ecx], ax
-			   add		ecx, 2
-			   dec		bl
-			   jnz		lab4
-			   sub		ecx, fDH
-			   add		ecx, FMSX2_C
-			   mov		bl, byte ptr mlx
-			   dec		bl
-			   dec		bh
-			   jnz		lab4
-			   pop		edi
-			   pop		esi
+		//xor		ebx, ebx
+		//mov		bl, byte ptr mlx
+		//mov		bh, byte ptr mly
+		//dec		bl
+		//dec		bh
+		//mov		ecx, 2 + FMSX2_C
+		TmpEBX = 0;
+		TmpBL = mlx - 1;
+		TmpBH = mly - 1;
+		TmpECX = 2 + FMSX2_C;
+	lab4 : 
+		//mov		dx, [esi + ecx - FMSX2_C]
+		//add		dx, [esi + ecx + FMSX2_C]
+		//add		dx, [esi + ecx - 2]
+		//add		dx, [esi + ecx + 2]
+		//mov		ax, dx
+		//shr		ax, 2
+		//shr		dx, 10
+		//sub		ax, dx
+		TmpDX = *reinterpret_cast<unsigned short *>(TmpESI + TmpECX - FMSX2_C);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX + FMSX2_C);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX - 2);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX + 2);
+		TmpAX = TmpDX >> 2;
+		TmpDX >>= 10;
+		TmpAX -= TmpDX;
+
+		//mov		word ptr[edi + ecx], ax
+		//add		ecx, 2
+		//dec		bl
+		//jnz		lab4
+		//sub		ecx, fDH
+		//add		ecx, FMSX2_C
+		//mov		bl, byte ptr mlx
+		//dec		bl
+		//dec		bh
+		//jnz		lab4
+		*reinterpret_cast<unsigned short *>(TmpEDI + TmpECX) = TmpAX;
+		TmpECX += 2;
+		TmpBL--;
+		if (TmpBL != 0) goto lab4;
+		TmpECX -= fDH;
+		TmpECX += FMSX2_C;
+		TmpBL = mlx - 1;
+		TmpBH--;
+		if (TmpBH != 0) goto lab4;
+		//pop		edi
+		//pop		esi
 	}
 }
 
@@ -137,43 +164,73 @@ void ProcessFog1_2()
 	int fDV = ( mlx*mly ) << 1;
 	int fDH = ( mlx << 1 ) - 2;
 	byte z = 1;
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, fmap1
-		mov		edi, fmap
-		mov		ebx, fDV
-		mov		ecx, mlx
-		inc		ecx
+	// BoonXRay 10.08.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//mov		esi, fmap1
+		//mov		edi, fmap
+		//mov		ebx, fDV
+		//mov		ecx, mlx
+		//inc		ecx
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(fmap1);
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(fmap);
+		unsigned int TmpEBX = fDV;
+		unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		unsigned char & TmpBH = *(reinterpret_cast<unsigned char *>(&TmpEBX) + 1);
+		unsigned int TmpECX = mlx + 1;
+		unsigned short TmpAX = 0, TmpDX = 0;
 
-		xor		ebx, ebx
-		mov		bl, byte ptr mlx
-		mov		bh, byte ptr mly
-		dec		bl
-		dec		bh
-		mov		ecx, 2 + FMSX2_C
-		lab4 : mov		dx, [esi + ecx - FMSX2_C]
-			   add		dx, [esi + ecx + FMSX2_C]
-			   add		dx, [esi + ecx - 2]
-			   add		dx, [esi + ecx + 2]
-			   mov		ax, dx
-			   shr		ax, 2
-			   shr		dx, 10
-			   sub		ax, dx
+		//xor		ebx, ebx
+		//mov		bl, byte ptr mlx
+		//mov		bh, byte ptr mly
+		//dec		bl
+		//dec		bh
+		//mov		ecx, 2 + FMSX2_C
+		TmpEBX = 0;
+		TmpBL = mlx - 1;
+		TmpBH = mly - 1;
+		TmpECX = 2 + FMSX2_C;
+	lab4 : 
+		//mov		dx, [esi + ecx - FMSX2_C]
+		//add		dx, [esi + ecx + FMSX2_C]
+		//add		dx, [esi + ecx - 2]
+		//add		dx, [esi + ecx + 2]
+		//mov		ax, dx
+		//shr		ax, 2
+		//shr		dx, 10
+		//sub		ax, dx
+		TmpDX = *reinterpret_cast<unsigned short *>(TmpESI + TmpECX - FMSX2_C);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX + FMSX2_C);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX - 2);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX + 2);
+		TmpAX = TmpDX >> 2;
+		TmpDX >>= 10;
+		TmpAX -= TmpDX;
 
-			   mov		word ptr[edi + ecx], ax
-			   add		ecx, 2
-			   dec		bl
-			   jnz		lab4
-			   sub		ecx, fDH
-			   add		ecx, FMSX2_C
-			   mov		bl, byte ptr mlx
-			   dec		bl
-			   dec		bh
-			   jnz		lab4
+		//mov		word ptr[edi + ecx], ax
+		//add		ecx, 2
+		//dec		bl
+		//jnz		lab4
+		//sub		ecx, fDH
+		//add		ecx, FMSX2_C
+		//mov		bl, byte ptr mlx
+		//dec		bl
+		//dec		bh
+		//jnz		lab4
+		*reinterpret_cast<unsigned short *>(TmpEDI + TmpECX) = TmpAX;
+		TmpECX += 2;
+		TmpBL--;
+		if (TmpBL != 0) goto lab4;
+		TmpECX -= fDH;
+		TmpECX += FMSX2_C;
+		TmpBL = mlx - 1;
+		TmpBH--;
+		if (TmpBH != 0) goto lab4;
 
-			   pop		edi
-			   pop		esi
+		//pop		edi
+		//pop		esi
 	};
 };
 
@@ -192,42 +249,71 @@ void ProcessFog1_3()
 	int fDV = ( mlx*mly ) << 1;
 	int fDH = ( mlx << 1 ) - 2;
 	byte z = 1;
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, fmap1
-		mov		edi, fmap
-		mov		ebx, fDV
-		mov		ecx, mlx
-		inc		ecx
+	// BoonXRay 10.08.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//mov		esi, fmap1
+		//mov		edi, fmap
+		//mov		ebx, fDV
+		//mov		ecx, mlx
+		//inc		ecx
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(fmap1);
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(fmap);
+		unsigned int TmpEBX = fDV;
+		unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+		unsigned int TmpECX = mlx + 1;
+		unsigned short TmpAX = 0, TmpDX = 0;
 
-		xor		ebx, ebx
-		mov		bx, word ptr mlx
-		dec		bx
-		dec		mly
-		mov		ecx, 2 + FMSX2_C
-		lab4 : mov		dx, [esi + ecx - FMSX2_C]
-			   add		dx, [esi + ecx + FMSX2_C]
-			   add		dx, [esi + ecx - 2]
-			   add		dx, [esi + ecx + 2]
-			   mov		ax, dx
-			   shr		ax, 2
-			   shr		dx, 10
-			   sub		ax, dx
+		//xor		ebx, ebx
+		//mov		bx, word ptr mlx
+		//dec		bx
+		//dec		mly
+		//mov		ecx, 2 + FMSX2_C
+		TmpEBX = 0;
+		TmpBX = mlx - 1;
+		mly--;
+		TmpECX = 2 + FMSX2_C;
+	lab4 : 
+		//mov		dx, [esi + ecx - FMSX2_C]
+		//add		dx, [esi + ecx + FMSX2_C]
+		//add		dx, [esi + ecx - 2]
+		//add		dx, [esi + ecx + 2]
+		//mov		ax, dx
+		//shr		ax, 2
+		//shr		dx, 10
+		//sub		ax, dx
+		TmpDX = *reinterpret_cast<unsigned short *>(TmpESI + TmpECX - FMSX2_C);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX + FMSX2_C);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX - 2);
+		TmpDX += *reinterpret_cast<unsigned short *>(TmpESI + TmpECX + 2);
+		TmpAX = TmpDX >> 2;
+		TmpDX >>= 10;
+		TmpAX -= TmpDX;
 
-			   mov		word ptr[edi + ecx], ax
-			   add		ecx, 2
-			   dec		bx
-			   jnz		lab4
-			   sub		ecx, fDH
-			   add		ecx, FMSX2_C
-			   mov		bx, word ptr mlx
-			   dec		bx
-			   dec		mly
-			   jnz		lab4
+		//mov		word ptr[edi + ecx], ax
+		//add		ecx, 2
+		//dec		bx
+		//jnz		lab4
+		//sub		ecx, fDH
+		//add		ecx, FMSX2_C
+		//mov		bx, word ptr mlx
+		//dec		bx
+		//dec		mly
+		//jnz		lab4
+		*reinterpret_cast<unsigned short *>(TmpEDI + TmpECX) = TmpAX;
+		TmpECX += 2;
+		TmpBX--;
+		if (TmpBX != 0) goto lab4;
+		TmpECX -= fDH;
+		TmpECX += FMSX2_C;
+		TmpBX = mlx - 1;
+		mly--;
+		if (mly != 0) goto lab4;
 
-			   pop		edi
-			   pop		esi
+		//pop		edi
+		//pop		esi
 	};
 };
 
@@ -330,92 +416,6 @@ void SetupFog()
 	}
 }
 
-#define Shifter 7
-
-static byte BFog[64][64];
-
-void SetScreenFog16x16()
-{
-	smaplx++;
-	smaply++;
-	int fofs = int( fmap ) + ( ( ( ( mapy - 1 ) << 8 ) + ( mapx - 1 ) ) << 1 );
-	int Saddy = ( 256 - smaplx ) << 1;
-	int Daddy = ( 64 - smaplx ) << 1;
-	word MinShad = ( MaxShad - ( 32 << Shifter ) );
-	//filling
-	__asm
-	{
-		push	esi
-		push	edi
-		mov		cl, byte ptr smaplx
-		mov		ch, byte ptr smaply
-		mov		esi, fofs
-		mov		edi, offset BFog + 64 + 2
-		cld
-		LP1 : lodsw
-			  cmp		ax, MaxShad
-			  jae		FullColor
-			  cmp		ax, MinShad
-			  jbe		AbsBlack
-			  sub		ax, MaxShad
-			  neg		ax
-			  shr		ax, Shifter
-			  jmp		asgn1
-			  AbsBlack :
-		mov		ax, 32
-			jmp		asgn1
-			FullColor :
-		xor		ax, ax
-			asgn1 : mov		ah, al
-			mov[edi], ax
-			mov[edi + 64], ax
-			add		edi, 2
-			dec		cl
-			jnz		LP1
-			mov		cl, byte ptr smaplx
-			add		esi, Saddy
-			add		edi, Daddy
-			dec		ch
-			jnz		LP1
-			pop		edi
-			pop		esi
-	}
-
-	smaplx--;
-	smaply--;
-}
-
-void ProcessScreenFog16x16()
-{
-	smaplx++;
-	smaply++;
-	int	ads = 64 - ( smaplx << 1 );
-	__asm
-	{
-		push	esi
-		mov		esi, offset BFog + 64 + 2
-		mov		ch, byte ptr smaply
-		shl		ch, 1
-		gt0:	mov		cl, byte ptr smaplx
-				gt1 : mov		ax, [esi - 1]
-					  add		ax, [esi + 1]
-					  add		ax, [esi - 64]
-					  add		ax, [esi + 64]
-					  shr		ax, 2
-					  and ax, 0x1F1F
-					  mov[esi], ax
-					  add		esi, 2
-					  dec		cl
-					  jnz		gt1
-					  add		esi, ads
-					  dec		ch
-					  jnz		gt0
-					  pop		esi
-	}
-	smaplx--;
-	smaply--;
-}
-
 #define zmin 0
 #define zmax 32
 
@@ -441,672 +441,319 @@ void ShowSuperFluentFog32_160_16( int x, int y, int z1x, int z2x, int z3x, int z
 
 	if ( z1x >= 96 && z2x >= 96 && z3x >= 96 && z4x >= 96 )
 	{
-		__asm
+		// BoonXRay 10.08.2017
+		//__asm
 		{
-			push	edi
-			mov		ebx, adds
-			mov		edi, scrof
-			mov		dl, 16
-			xor eax, eax
-			cld
-			iug : mov		ecx, 8
-				  rep		stosd
-				  add		edi, ebx
-				  dec		dl
-				  jnz		iug
-				  pop		edi
+			//push	edi
+			//mov		ebx, adds
+			//mov		edi, scrof
+			//mov		dl, 16
+			//xor eax, eax
+			//cld
+			unsigned int TmpEBX = adds;
+			unsigned int TmpEDI = scrof;
+			unsigned short TmpDL = 16;
+			unsigned int TmpEAX = 0;
+		iug : 
+			//mov		ecx, 8
+			//rep		stosd
+			unsigned int TmpECX = 8;
+			for (; TmpECX != 0; TmpECX--, TmpEDI += 4 /*sizeof(int)*/)
+				*reinterpret_cast<unsigned int *>(TmpEDI) = TmpEAX;
+			//add		edi, ebx
+			//dec		dl
+			//jnz		iug
+			//pop		edi
+			TmpEDI += TmpEBX;
+			TmpDL--;
+			if (TmpDL != 0) goto iug;
 		}
 		return;
 	}
 	else
 	{
-		int a, b, p;
+		//int a, b, p;
 		int c = ( z3 - z1 ) >> 4;
 		int d = ( z1 + z4 - z3 - z2 ) >> 9;
-		__asm
+		// BoonXRay 11.08.2017
+		//__asm
+		//{
+		//	push	edi
+		//	push	esi
+		//	pushf
+		//	mov		eax, z1
+		//	mov		ebx, eax
+		//	mov		a, ebx
+		//	mov		ecx, z2
+		//	sub		ecx, eax
+		//	sar		ecx, 5
+		//	mov		b, ecx
+		//	//coefficients are now calculated
+		//	mov		ecx, 0x1004
+		//	mov		ebx, a		//bh=fogging value
+		//	mov		edx, b		//dx=fog incrementor
+		//	xor		eax, eax
+		//	mov		esi, scrof
+		//	mov		p, ebx
+		//	qqw1 : mov		eax, ebx
+		//		   sar		eax, 8
+		//		   mov		al, [esi]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   sar		eax, 8
+		//		   mov		al, [esi + 1]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 1], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   sar		eax, 8
+		//		   mov		al, [esi + 2]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 2], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   sar		eax, 8
+		//		   mov		al, [esi + 3]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 3], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 4]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 4], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 5]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 5], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 6]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 6], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 7]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 7], al
+		//		   add		esi, 8
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 1]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 1], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 2]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 2], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 3]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 3], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 4]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 4], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 5]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 5], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 6]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 6], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 7]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 7], al
+		//		   add		esi, 8
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 1]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 1], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 2]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 2], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 3]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 3], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 4]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 4], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 5]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 5], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 6]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 6], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 7]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 7], al
+		//		   add		esi, 8
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 1]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 1], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 2]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 2], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 3]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 3], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 4]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 4], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 5]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 5], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 6]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 6], al
+		//		   //inc		esi
+		//		   add		ebx, edx
+		//		   mov		eax, ebx
+		//		   shr		eax, 8
+		//		   mov		al, [esi + 7]
+		//		   mov		al, [darkfog + eax]
+		//		   mov[esi + 7], al
+		//		   add		esi, 8
+		//		   add		ebx, edx
+		//		   //jnz		qqw1
+		//		   add		esi, adds
+		//		   add		edx, d
+		//		   mov		ebx, p
+		//		   add		ebx, c
+		//		   //mov		cl,4
+		//		   mov		p, ebx
+		//		   dec		ch
+		//		   jnz		qqw1
+		//		   popf
+		//		   pop		esi
+		//		   pop		edi
+		//}
+		//coefficients are now calculated
+		int p = z1;	// Fogging value
+		int TmpEDX = (z2 - z1) / 32;	// Fog incrementor
+		unsigned char * TmpESI = reinterpret_cast<unsigned char *>(ScreenPtr) + x + y * SCRSizeX;
+
+		for (int i = 0; i < 16; i++)
 		{
-			push	edi
-			push	esi
-			pushf
-			mov		eax, z1
-			mov		ebx, eax
-			mov		a, ebx
-			mov		ecx, z2
-			sub		ecx, eax
-			sar		ecx, 5
-			mov		b, ecx
-			//coefficients are now calculated
-			mov		ecx, 0x1004
-			mov		ebx, a		//bh=fogging value
-			mov		edx, b		//dx=fog incrementor
-			xor		eax, eax
-			mov		esi, scrof
-			mov		p, ebx
-			qqw1 : mov		eax, ebx
-				   sar		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   sar		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   sar		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   sar		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   //jnz		qqw1
-				   add		esi, adds
-				   add		edx, d
-				   mov		ebx, p
-				   add		ebx, c
-				   //mov		cl,4
-				   mov		p, ebx
-				   dec		ch
-				   jnz		qqw1
-				   popf
-				   pop		esi
-				   pop		edi
+			int TmpEBX = p;
+			for (int j = 0; j < 32; j++, TmpESI++, TmpEBX += TmpEDX)
+			{
+				unsigned int TmpEAX = TmpEBX >> 8;
+				*reinterpret_cast<unsigned char *>(&TmpEAX) = * TmpESI;	// Changing lower byte
+				* TmpESI = darkfog[ TmpEAX ];
+			}
+
+			TmpESI += adds;
+			TmpEDX += d;
+			p += c;
 		}
 	}
 }
 
-void ShowSuperFluentFog16_160( int x, int y, int z1x, int z2x, int z3x, int z4x )
-{
-	int z1 = z1x << 16;
-	int	z2 = z2x << 16;
-	int z3 = z3x << 16;
-	int	z4 = z4x << 16;
-	int scrof = int( ScreenPtr ) + x + y*SCRSizeX;
-	int adds = SCRSizeX - 16;
-
-	if ( z1x <= 63 && z2x <= 63 && z3x <= 63 && z4x <= 63 )
-	{
-		return;
-	}
-
-	if ( z1x >= 96 && z2x >= 96 && z3x >= 96 && z4x >= 96 )
-	{
-		__asm
-		{
-			push	edi
-			mov		ebx, adds
-			mov		edi, scrof
-			mov		dl, 16
-			xor eax, eax
-			cld
-			iug : mov		ecx, 4
-				  rep		stosd
-				  add		edi, ebx
-				  dec		dl
-				  jnz		iug
-				  pop		edi
-		}
-		return;
-	}
-	else
-	{
-		int a, b, c, d, p;
-		__asm
-		{
-			push	edi
-			push	esi
-			pushf
-			mov		eax, z1
-			mov		ebx, eax
-			//shl		ebx,8
-			mov		a, ebx
-			mov		ecx, z2
-			sub		ecx, eax
-			sar		ecx, 4
-			mov		b, ecx
-			mov		ecx, z3
-			sub		ecx, eax
-			sar		ecx, 4
-			mov		c, ecx
-			mov		ecx, z4
-			add		ecx, z1
-			sub		ecx, z2
-			sub		ecx, z3
-			sar		ecx, 8
-			mov		d, ecx
-			//coefficients are now calculated
-			mov		ecx, 0x1002
-			mov		ebx, a		//bh=fogging value
-			//add		ebx,256*256*3
-			mov		edx, b		//dx=fog incrementor
-			xor		eax, eax
-			mov		esi, scrof
-			mov		p, ebx
-			qqw1 : mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   //jnz		qqw1
-				   add		esi, adds
-				   add		edx, d
-				   mov		ebx, p
-				   add		ebx, c
-				   //mov		cl,4
-				   mov		p, ebx
-				   dec		ch
-				   jnz		qqw1
-				   popf
-				   pop		esi
-				   pop		edi
-		}
-	}
-}
-
-void ShowSuperFluentFog12_160( int x, int y, int z1x, int z2x, int z3x, int z4x )
-{
-	int z1 = z1x << 16;
-	int	z2 = z2x << 16;
-	int z3 = z3x << 16;
-	int	z4 = z4x << 16;
-	int scrof = int( ScreenPtr ) + x + y*SCRSizeX;
-	int adds = SCRSizeX - 16;
-	if ( z1x <= 63 && z2x <= 63 && z3x <= 63 && z4x <= 63 )return;
-	if ( z1x >= 96 && z2x >= 96 && z3x >= 96 && z4x >= 96 )
-	{
-		__asm {
-			push	edi
-			mov		ebx, adds
-			mov		edi, scrof
-			mov		dl, 12
-			xor eax, eax
-			cld
-			iug : mov		ecx, 4
-				  rep		stosd
-				  add		edi, ebx
-				  dec		dl
-				  jnz		iug
-				  pop		edi
-		};
-		return;
-	}
-	else
-	{
-		int a, b;
-		int c = div( z3 - z1, 12 ).quot;
-		int d = div( z1 + z4 - z3 - z2, 192 ).quot;
-		int p;
-		__asm {
-			push	edi
-			push	esi
-			pushf
-			mov		eax, z1
-			mov		ebx, eax
-			//shl		ebx,8
-			mov		a, ebx
-			mov		ecx, z2
-			sub		ecx, eax
-			sar		ecx, 4
-			mov		b, ecx
-			/*mov		ecx,z3
-			sub		ecx,eax
-			sar		ecx,4
-			mov		c,ecx
-			mov		ecx,z4
-			add		ecx,z1
-			sub		ecx,z2
-			sub		ecx,z3
-			sar		ecx,8
-			mov		d,ecx*/
-			//coefficients are now calculated
-			mov		ecx, 0x0C02
-			mov		ebx, a		//bh=fogging value
-			//add		ebx,256*256*3
-			mov		edx, b		//dx=fog incrementor
-			xor		eax, eax
-			mov		esi, scrof
-			mov		p, ebx
-			qqw1 : mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi]
-				   mov		al, [darkfog + eax]
-				   mov[esi], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 1]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 1], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 2]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 2], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 3]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 3], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 4]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 4], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 5]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 5], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 6]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 6], al
-				   //inc		esi
-				   add		ebx, edx
-				   mov		eax, ebx
-				   shr		eax, 8
-				   mov		al, [esi + 7]
-				   mov		al, [darkfog + eax]
-				   mov[esi + 7], al
-				   add		esi, 8
-				   add		ebx, edx
-				   //jnz		qqw1
-				   add		esi, adds
-				   add		edx, d
-				   mov		ebx, p
-				   add		ebx, c
-				   //mov		cl,4
-				   mov		p, ebx
-				   dec		ch
-				   jnz		qqw1
-				   popf
-				   pop		esi
-				   pop		edi
-		};
-	};
-};
 #define shf 300
 #define fmin 1500
 byte fden[8192];
@@ -1140,27 +787,6 @@ void TurnFogOn()
 void TurnFogOff()
 {
 	FogMode = 0;
-}
-
-void SetLightPoint( int x, int y )
-{
-	int xx1 = x >> 5;
-	int yy1 = y >> 5;
-	if ( xx1 < 0 )xx1 = 0;
-	if ( xx1 >= msx )xx1 = msx - 1;
-	if ( yy1 >= msy )yy1 = msy - 1;
-	if ( Mode3D )y -= THMap[xx1 + yy1 + ( yy1 << MTHShift )] << 1;
-	yy1 = y >> 5;
-	if ( yy1 < 0 )yy1 = 0;
-	if ( yy1 >= msy )yy1 = msy - 1;
-	__asm
-	{
-		xor		eax, eax
-		mov		al, byte ptr xx1
-		mov		ah, byte ptr yy1
-		shl		eax, 1
-		mov		word ptr[fmap + eax], 16383;
-	}
 }
 
 void FogSpot( int x, int y );
@@ -1472,33 +1098,55 @@ void DrawMiniFog()
 	int F_add = ( FMSX2 << ( ADDSH - 1 ) ) - ( MMSX << ADDSH );
 	int DDDX = 1 << ADDSH;
 
-	__asm
+	// BoonXRay 10.08.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		pushf
-		mov		esi, fofs
-		mov		edi, sofs
-		mov		edx, ScrWidth
-		mov		ebx, DDDX
-		lopx1 :
-		mov		ecx, MMSX
-			lopx3 : mov     ax, [esi]
-			add		esi, ebx
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		esi, fofs
+		//mov		edi, sofs
+		//mov		edx, ScrWidth
+		//mov		ebx, DDDX
+		unsigned int TmpESI = fofs;
+		unsigned int TmpEDI = sofs;
+		unsigned int TmpEDX = ScrWidth;
+		unsigned int TmpEBX = DDDX;
+		unsigned int TmpEAX = 0, TmpECX = 0;
+		unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+	lopx1 :
+		//mov		ecx, MMSX
+		TmpECX = MMSX;
+	lopx3 :
+		//mov     ax, [esi]
+		//add		esi, ebx
+		TmpAX= *reinterpret_cast<unsigned short *>(TmpESI);
+		TmpESI += TmpEBX;
 
-			cmp		ax, 1300
-			ja		lopx2
-			mov		word ptr[edi], 0
-			mov		word ptr[edi + edx], 0
-			lopx2:	add		edi, 2
-			dec		ecx
-			jnz		lopx3
-			add		esi, F_add
-			add		edi, addscr
-			dec		MMSY
-			jnz		lopx1
-			popf
-			pop		edi
-			pop		esi
+		//cmp		ax, 1300
+		//ja		lopx2
+		//mov		word ptr[edi], 0
+		//mov		word ptr[edi + edx], 0
+		if (TmpAX > 1300) goto lopx2;
+		*reinterpret_cast<unsigned short *>(TmpEDI) = 0;
+		*reinterpret_cast<unsigned short *>(TmpEDI+TmpEDX) = 0;
+	lopx2:	
+		//add		edi, 2
+		//dec		ecx
+		//jnz		lopx3
+		//add		esi, F_add
+		//add		edi, addscr
+		//dec		MMSY
+		//jnz		lopx1
+		//popf
+		//pop		edi
+		//pop		esi
+		TmpEDI += 2;
+		TmpECX--;
+		if (TmpECX != 0) goto lopx3;
+		TmpESI += F_add;
+		TmpEDI += addscr;
+		MMSY--;
+		if (MMSY != 0) goto lopx1;
 	}
 }

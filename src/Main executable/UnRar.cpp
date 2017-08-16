@@ -6,10 +6,7 @@
 
 enum { EXTRACT, TEST, PRINT };
 
-void ExtractArchive(char *ArcName, int Mode);
-void ListArchive(char *ArcName);
 void ShowComment(char *CmtBuf);
-void OutHelp(void);
 void OutOpenArchiveError(int Error, char *ArcName);
 void OutProcessFileError(int Error);
 int ChangeVolProc(char *ArcName, int Mode);
@@ -106,70 +103,9 @@ void ExtractArchive(char *ArcName, int Mode, char* Dest)
 		RARCloseArchive(hArcData);
 }
 
-
-void ListArchive(char *ArcName)
-{
-	HANDLE hArcData;
-	int RHCode, PFCode;
-	char CmtBuf[16384];
-	struct RARHeaderData HeaderData;
-	struct RAROpenArchiveData OpenArchiveData;
-
-	OpenArchiveData.ArcName = ArcName;
-	OpenArchiveData.CmtBuf = CmtBuf;
-	OpenArchiveData.CmtBufSize = sizeof(CmtBuf);
-	OpenArchiveData.OpenMode = RAR_OM_LIST;
-	hArcData = RAROpenArchive(&OpenArchiveData);
-
-	if (OpenArchiveData.OpenResult != 0)
-	{
-		OutOpenArchiveError(OpenArchiveData.OpenResult, ArcName);
-		return;
-	}
-
-	if (OpenArchiveData.CmtState == 1)
-		ShowComment(CmtBuf);
-
-	RARSetChangeVolProc(hArcData, ChangeVolProc);
-
-	HeaderData.CmtBuf = CmtBuf;
-	HeaderData.CmtBufSize = sizeof(CmtBuf);
-
-	printf("\nFile                       Size");
-	printf("\n-------------------------------");
-	while ((RHCode = RARReadHeader(hArcData, &HeaderData)) == 0)
-	{
-		printf("\n%-20s %10d ", HeaderData.FileName, HeaderData.UnpSize);
-		if (HeaderData.CmtState == 1)
-			ShowComment(CmtBuf);
-		if ((PFCode = RARProcessFile(hArcData, RAR_SKIP, NULL, NULL)) != 0)
-		{
-			OutProcessFileError(PFCode);
-			break;
-		}
-	}
-
-	if (RHCode == ERAR_BAD_DATA)
-		printf("\nFile header broken");
-
-	RARCloseArchive(hArcData);
-}
-
-
 void ShowComment(char *CmtBuf)
 {
 	printf("\nComment:\n%s\n", CmtBuf);
-}
-
-
-void OutHelp(void)
-{
-	printf("\nUNRDLL.   This is a simple example of UNRAR.DLL usage\n");
-	printf("\nSyntax:\n");
-	printf("\nUNRDLL X <Archive>     extract archive contents");
-	printf("\nUNRDLL T <Archive>     test archive contents");
-	printf("\nUNRDLL P <Archive>     print archive contents to stdout");
-	printf("\nUNRDLL L <Archive>     view archive contents\n");
 }
 
 

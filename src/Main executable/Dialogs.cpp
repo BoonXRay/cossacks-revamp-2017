@@ -2879,26 +2879,48 @@ __declspec( dllexport ) void CBar( int x0, int y0, int Lx0, int Ly0, byte c )
 	int adds = ScrWidth - Lx;
 	int Lx4 = Lx >> 2;
 	int Lx1 = Lx & 3;
-	__asm
+	// BoonXRay 06.08.2017
+	//__asm
 	{
-		push	edi
-		mov		edi, ofst
-		mov		edx, Ly
-		cld
-		mov		al, c
-		mov		ah, al
-		shl		eax, 16
-		mov		al, c
-		mov		ah, al
-		mov		ebx, Lx1
-		qwr : mov		ecx, Lx4
-			  rep		stosd
-			  mov		ecx, ebx
-			  rep		stosb
-			  add		edi, adds
-			  dec		edx
-			  jnz		qwr
-			  pop		edi
+		//push	edi
+		//mov		edi, ofst
+		unsigned int TmpEDI = ofst;
+		//mov		edx, Ly
+		unsigned int TmpEDX = Ly;
+		//cld
+		//mov		al, c
+		unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+		TmpAL = c;
+		//mov		ah, al
+		TmpAH = TmpAL;
+		//shl		eax, 16
+		TmpEAX <<= 16;
+		//mov		al, c
+		TmpAL = c;
+		//mov		ah, al
+		TmpAH = TmpAL;
+		//mov		ebx, Lx1
+		TmpEBX = Lx1;
+	qwr : 
+		//mov		ecx, Lx4
+		TmpECX = Lx4;
+		//rep		stosd
+		for (; TmpECX != 0; TmpECX--, TmpEDI += 4 /*sizeof(int)*/)
+			*reinterpret_cast<unsigned int *>(TmpEDI) = TmpEAX;
+		//mov		ecx, ebx
+		TmpECX = TmpEBX;
+		//rep		stosb
+		for (; TmpECX != 0; TmpECX--, TmpEDI += 1 /*sizeof(unsigned char)*/ )
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//add		edi, adds
+		TmpEDI += adds;
+		//dec		edx
+		TmpEDX--;
+		//jnz		qwr
+		if (TmpEDX != 0) goto qwr;
+		//pop		edi
 	}
 }
 
@@ -3465,25 +3487,36 @@ bool BPXView_OnDraw( SimpleDialog* SD )
 				ps = int( BV->Ptr ) + ( BV->PosY + iy )*( BV->OneLx + BV->DECLX )*BV->Nx*( BV->OneLy + BV->DECLX ) + ix*( BV->OneLx + BV->DECLX );
 				int addB = ( BV->DECLX + BV->OneLx )*BV->Nx - BV->OneLx;
 				int sofst = int( ScreenPtr ) + BV->x + BV->OneLx*ix + ( BV->y + BV->OneLy*iy )*SCRSizeX;
-				__asm
+				// BoonXRay 06.08.2017
+				//__asm
 				{
-					push	esi
-					push	edi
-					pushf
-					cld
-					mov		esi, ps
-					mov		edi, sofst
-					mov		edx, Ly
-					ppp1 : mov		ecx, Lx
-						   rep		movsd
-						   add		edi, addof
-						   add     esi, addB
-						   dec		edx
-						   jnz		ppp1
-						   popf
-						   pop		edi
-						   pop		esi
-
+					//push	esi
+					//push	edi
+					//pushf
+					//cld
+					//mov		esi, ps
+					unsigned int TmpESI = ps;
+					//mov		edi, sofst
+					unsigned int TmpEDI = sofst;
+					//mov		edx, Ly
+					unsigned int TmpEDX = Ly;
+				ppp1 : 
+					//mov		ecx, Lx
+					unsigned int TmpECX = Lx;
+					//rep		movsd
+					for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+						*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+					//add		edi, addof
+					TmpEDI += addof;
+					//add     esi, addB
+					TmpESI += addB;
+					//dec		edx
+					TmpEDX--;
+					//jnz		ppp1
+					if (TmpEDX != 0) goto ppp1;
+					//popf
+					//pop		edi
+					//pop		esi
 				}
 			}
 		}
@@ -3491,23 +3524,52 @@ bool BPXView_OnDraw( SimpleDialog* SD )
 	else
 	{
 		int addof = SCRSizeX - ( Lx << 2 );
-		__asm
+		// BoonXRay 06.08.2017
+		//__asm
+		//{
+		//	push	esi
+		//	push	edi
+		//	pushf
+		//	cld
+		//	mov		esi, ps
+		//	mov		edi, sofst
+		//	mov		edx, Ly
+		//	ppp : mov		ecx, Lx
+		//		  rep		movsd
+		//		  add		edi, addof
+		//		  dec		edx
+		//		  jnz		ppp
+		//		  popf
+		//		  pop		edi
+		//		  pop		esi
+		//}
+		//__asm
 		{
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, ps
-			mov		edi, sofst
-			mov		edx, Ly
-			ppp : mov		ecx, Lx
-				  rep		movsd
-				  add		edi, addof
-				  dec		edx
-				  jnz		ppp
-				  popf
-				  pop		edi
-				  pop		esi
+			//push	esi
+			//push	edi
+			//pushf
+			//cld
+			//mov		esi, ps
+			//mov		edi, sofst
+			//mov		edx, Ly
+			unsigned int TmpESI = ps;
+			unsigned int TmpEDI = sofst;
+			unsigned int TmpEDX = Ly;
+		ppp : 
+			//mov		ecx, Lx
+			//rep		movsd
+			//add		edi, addof
+			unsigned int TmpECX = Lx;
+			for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+				*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+			TmpEDI += addof;
+			//dec		edx
+			TmpEDX--;
+			//jnz		ppp
+			if (TmpEDX != 0) goto ppp;
+			//popf
+			//pop		edi
+			//pop		esi
 		}
 	}
 	bool SSTAT = ( GetKeyState( VK_SHIFT ) & 0x8000 ) != 0;
@@ -4906,211 +4968,80 @@ void CopyToScreen( int zx, int zy, int zLx, int zLy )
 	int radd = RSCRSizeX - Lx;
 	int Lx4 = Lx >> 2;
 	int Lx1 = Lx & 3;
-	__asm
+	// BoonXRay 06.08.2017
+	//__asm
+	//{
+	//	push	esi
+	//	push	edi
+	//	mov		edx, Ly
+	//	or edx, edx
+	//	jz		lpp4
+	//	mov		esi, scof
+	//	mov		edi, reof
+	//	cld
+	//	lpp1 : mov		ecx, Lx4
+	//		   jcxz	lpp2
+	//		   //		cli
+	//		   rep		movsd
+	//		   lpp2 : mov		ecx, Lx1
+	//				  jcxz	lpp3
+	//				  rep		movsb
+	//				  lpp3 :	//sti
+	//	add		esi, sadd
+	//		add		edi, radd
+	//		dec		edx
+	//		jnz		lpp1
+	//		lpp4 : pop		edi
+	//		pop		esi
+	//}
+	//__asm
 	{
-		push	esi
-		push	edi
-		mov		edx, Ly
-		or edx, edx
-		jz		lpp4
-		mov		esi, scof
-		mov		edi, reof
-		cld
-		lpp1 : mov		ecx, Lx4
-			   jcxz	lpp2
-			   //		cli
-			   rep		movsd
-			   lpp2 : mov		ecx, Lx1
-					  jcxz	lpp3
-					  rep		movsb
-					  lpp3 :	//sti
-		add		esi, sadd
-			add		edi, radd
-			dec		edx
-			jnz		lpp1
-			lpp4 : pop		edi
-			pop		esi
+		//push	esi
+		//push	edi
+		//mov		edx, Ly
+		unsigned int TmpEDX = Ly;
+		//or edx, edx
+		//jz		lpp4
+		if (TmpEDX == 0) goto lpp4;
+		//mov		esi, scof
+		unsigned int TmpESI = scof;
+		//mov		edi, reof
+		unsigned int TmpEDI = reof;
+		//cld
+		unsigned int TmpECX = 0;
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+	lpp1 : 
+		//mov		ecx, Lx4
+		TmpECX = Lx4;
+		//jcxz	lpp2
+		if (TmpCX == 0) goto lpp2;
+		//rep		movsd
+		for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+			*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+	lpp2 : 
+		//mov		ecx, Lx1
+		TmpECX = Lx1;
+		//jcxz	lpp3
+		if (TmpCX == 0) goto lpp3;
+		//rep		movsb
+		for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+	lpp3 :	
+		//add		esi, sadd
+		TmpESI += sadd;
+		//add		edi, radd
+		TmpEDI += radd;
+		//dec		edx
+		TmpEDX--;
+		//jnz		lpp1
+		if (TmpEDX != 0) goto lpp1;
+	lpp4 : 
+		//pop		edi
+		//pop		esi
+		;
 	}
 }
 
-void CopyToOffScreen( int zx, int zy,
-	int srLx, int srLy,
-	byte* data )
-{
-	if (!bActive)return;
-	int x = zx;
-	int y = zy;
-	int Lx = srLx;
-	int Ly = srLy;
-	//if(zLx<=0||zLy<=0||zx<0||zy<0||zx+zLx>RealLx||zy+zLy>RealLy)return;
-	//if(zLx<=0||zLy<=0||zx<0||zy<0)return;
-	if (x < 0)
-	{
-		Lx += x;
-		x = 0;
-	};
-	if (y < 0)
-	{
-		Ly += y;
-		y = 0;
-	};
-	if (x + Lx > RealLx)Lx = RealLx - x;
-	if (y + Ly > RealLy)Ly = RealLy - y;
-	if (Lx < 0 || Ly < 0)
-		return;
-	int scof = int( data );
-	int reof = int( ScreenPtr ) + x + y*SCRSizeX;
-	int sadd = srLx - Lx;
-	int radd = SCRSizeX - Lx;
-	int Lx4 = Lx >> 2;
-	int Lx1 = Lx & 3;
-	__asm {
-		push	esi
-		push	edi
-		mov		edx, Ly
-		or edx, edx
-		jz		lpp4
-		mov		esi, scof
-		mov		edi, reof
-		cld
-		lpp1 : mov		ecx, Lx4
-			   jcxz	lpp2
-			   //		cli
-			   rep		movsd
-			   lpp2 : mov		ecx, Lx1
-					  jcxz	lpp3
-					  rep		movsb
-					  lpp3 :	//sti
-		add		esi, sadd
-			add		edi, radd
-			dec		edx
-			jnz		lpp1
-			lpp4 : pop		edi
-			pop		esi
-	};
-};
-void CopyToRealScreenMMX( int zx, int zy,
-	int srLx, int srLy,
-	byte* data );
-void CopyToRealScreen( int zx, int zy,
-	int srLx, int srLy,
-	byte* data )
-{
-	if (!bActive)return;
-	//CopyToRealScreenMMX(zx,zy,srLx,srLy,data);
-	//return;
-	int x = zx;
-	int y = zy;
-	int Lx = srLx;
-	int Ly = srLy;
-	//if(zLx<=0||zLy<=0||zx<0||zy<0||zx+zLx>RealLx||zy+zLy>RealLy)return;
-	//if(zLx<=0||zLy<=0||zx<0||zy<0)return;
-	if (x < 0)
-	{
-		Lx += x;
-		x = 0;
-	};
-	if (y < 0)
-	{
-		Ly += y;
-		y = 0;
-	};
-	if (x + Lx > RealLx)Lx = RealLx - x;
-	if (y + Ly > RealLy)Ly = RealLy - y;
-	if (Lx < 0 || Ly < 0)
-		return;
-	int scof = int( data );
-	int reof = int( RealScreenPtr ) + x + y*RSCRSizeX;
-	int sadd = srLx - Lx;
-	int radd = RSCRSizeX - Lx;
-	int Lx4 = Lx >> 2;
-	int Lx1 = Lx & 3;
-	__asm {
-		push	esi
-		push	edi
-		mov		edx, Ly
-		or edx, edx
-		jz		lpp4
-		mov		esi, scof
-		mov		edi, reof
-		cld
-		lpp1 : mov		ecx, Lx4
-			   jcxz	lpp2
-			   //		cli
-			   rep		movsd
-			   lpp2 : mov		ecx, Lx1
-					  jcxz	lpp3
-					  rep		movsb
-					  lpp3 :	//sti
-		add		esi, sadd
-			add		edi, radd
-			dec		edx
-			jnz		lpp1
-			lpp4 : pop		edi
-			pop		esi
-	};
-};
-void CopyToRealScreenMMX( int zx, int zy,
-	int srLx, int srLy,
-	byte* data )
-{
-	int x = zx;
-	int y = zy;
-	int Lx = srLx;
-	int Ly = srLy;
-	//if(zLx<=0||zLy<=0||zx<0||zy<0||zx+zLx>RealLx||zy+zLy>RealLy)return;
-	//if(zLx<=0||zLy<=0||zx<0||zy<0)return;
-	if (x < 0)
-	{
-		Lx += x;
-		x = 0;
-	};
-	if (y < 0)
-	{
-		Ly += y;
-		y = 0;
-	};
-	if (x + Lx > RealLx)Lx = RealLx - x;
-	if (y + Ly > RealLy)Ly = RealLy - y;
-	if (Lx < 0 || Ly < 0)
-		return;
-	int scof = int( data );
-	int reof = int( RealScreenPtr ) + x + y*RSCRSizeX;
-	int sadd = srLx - Lx;
-	int radd = RSCRSizeX - Lx;
-	int Lx4 = Lx >> 3;
-	int Lx1 = Lx & 7;
-	__asm {
-		push	esi
-		push	edi
-		mov		edx, Ly
-		or edx, edx
-		jz		lpp4
-		mov		esi, scof
-		mov		edi, reof
-		cld
-		lpp1 : mov		ecx, Lx4
-			   jcxz	lpp2
-			   //		cli
-			   lppm1 : movq	mm0, [esi]
-					   add		esi, 8
-					   movq[edi], mm0
-					   add		edi, 8
-					   dec		ecx
-					   jnz		lppm1
-					   lpp2 : mov		ecx, Lx1
-							  jcxz	lpp3
-							  rep		movsb
-							  lpp3 :	//sti
-		add		esi, sadd
-			add		edi, radd
-			dec		edx
-			jnz		lpp1
-			lpp4 : pop		edi
-			pop		esi
-			emms
-	};
-};
 //--------Pictures methods--------//
 void SQPicture::Draw( int x, int y )
 {
@@ -5125,26 +5056,71 @@ void SQPicture::Draw( int x, int y )
 	int lx4 = lx >> 2;
 	int lx1 = lx & 3;
 	int scradd = ScrWidth - lx;//SizeX-lx;
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, pofst
-		mov		edi, sofst
-		mov		edx, ly
-		or edx, edx
-		jz		uu3
-		cld
-		lpp1 : mov		ecx, lx4
-			   jcxz	uu1
-			   rep		movsd
-			   uu1 : mov		ecx, lx1
-					 jcxz	uu2
-					 rep		movsb
-					 uu2 : add		edi, scradd
-						   dec		edx
-						   jnz		lpp1
-						   uu3 : pop		edi
-								 pop		esi
+	// BoonXRay 06.08.2017
+	//__asm {
+	//	push	esi
+	//	push	edi
+	//	mov		esi, pofst
+	//	mov		edi, sofst
+	//	mov		edx, ly
+	//	or edx, edx
+	//	jz		uu3
+	//	cld
+	//	lpp1 : mov		ecx, lx4
+	//		   jcxz	uu1
+	//		   rep		movsd
+	//		   uu1 : mov		ecx, lx1
+	//				 jcxz	uu2
+	//				 rep		movsb
+	//				 uu2 : add		edi, scradd
+	//					   dec		edx
+	//					   jnz		lpp1
+	//					   uu3 : pop		edi
+	//							 pop		esi
+	//};
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//mov		esi, pofst
+		unsigned int TmpESI = pofst;
+		//mov		edi, sofst
+		unsigned int TmpEDI = sofst;
+		//mov		edx, ly
+		unsigned int TmpEDX = ly;
+		//or edx, edx
+		//jz		uu3
+		if (TmpEDX == 0) goto uu3;
+		//cld
+		unsigned int TmpECX = 0;
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+	lpp1 :
+		//mov		ecx, lx4
+		TmpECX = lx4;
+		//jcxz	uu1
+		if (TmpCX == 0) goto uu1;
+		//rep		movsd
+		for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+			*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+	uu1 : 
+		//mov		ecx, lx1
+		TmpECX = lx1;
+		//jcxz	uu2
+		if (TmpCX == 0) goto uu2;
+		//rep		movsb
+		for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+	uu2 : 
+		//add		edi, scradd
+		TmpEDI += scradd;
+		//dec		edx
+		TmpEDX--;
+		//jnz		lpp1
+		if (TmpEDX != 0) goto lpp1;
+	uu3 : 
+		//pop		edi
+		//pop		esi
+		;
 	};
 };
 void SQPicture::DrawTransparent( int x, int y )
@@ -5158,32 +5134,87 @@ void SQPicture::DrawTransparent( int x, int y )
 	int lx4 = lx >> 2;
 	int lx1 = lx & 3;
 	int scradd = SCRSizeX - lx;
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, pofst
-		mov		edi, sofst
-		mov		edx, ly
-		or edx, edx
-		jz		uu3
-		cld
-		lpp0 : mov		ecx, lx
-			   lpp1 : lodsb
-					  or al, al
-					  jnz		lpp1x
-					  //inc		esi
-					  inc		edi
-					  dec		ecx
-					  jnz		lpp1
-					  jmp		uu2
-					  lpp1x : stosb
-							  dec		ecx
-							  jnz		lpp1
-							  uu2 : add		edi, scradd
-									dec		edx
-									jnz		lpp0
-									uu3 : pop		edi
-										  pop		esi
+	// BoonXRay 06.08.2017
+	//__asm {
+	//	push	esi
+	//	push	edi
+	//	mov		esi, pofst
+	//	mov		edi, sofst
+	//	mov		edx, ly
+	//	or edx, edx
+	//	jz		uu3
+	//	cld
+	//	lpp0 : mov		ecx, lx
+	//		   lpp1 : lodsb
+	//				  or al, al
+	//				  jnz		lpp1x
+	//				  //inc		esi
+	//				  inc		edi
+	//				  dec		ecx
+	//				  jnz		lpp1
+	//				  jmp		uu2
+	//				  lpp1x : stosb
+	//						  dec		ecx
+	//						  jnz		lpp1
+	//						  uu2 : add		edi, scradd
+	//								dec		edx
+	//								jnz		lpp0
+	//								uu3 : pop		edi
+	//									  pop		esi
+	//};
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//mov		esi, pofst
+		unsigned int TmpESI = pofst;
+		//mov		edi, sofst
+		unsigned int TmpEDI = sofst;
+		//mov		edx, ly
+		unsigned int TmpEDX = ly;
+		//or edx, edx
+		//jz		uu3
+		if (TmpEDX == 0) goto uu3;
+		//cld
+		unsigned int TmpEAX = 0, TmpECX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+	lpp0 : 
+		//mov		ecx, lx
+		TmpECX = lx;
+	lpp1 : 
+		//lodsb
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+		TmpESI++;
+		//or al, al
+		//jnz		lpp1x
+		if (TmpAL != 0) goto lpp1x;
+		//inc		edi
+		TmpEDI++;
+		//dec		ecx
+		TmpECX--;
+		//jnz		lpp1
+		if (TmpECX != 0) goto lpp1;
+		//jmp		uu2
+		goto uu2;
+	lpp1x : 
+		//stosb
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		TmpEDI++;
+		//dec		ecx
+		TmpECX--;
+		//jnz		lpp1
+		if (TmpECX != 0) goto lpp1;
+	uu2 : 
+		//add		edi, scradd
+		TmpEDI += scradd;
+		//dec		edx
+		TmpEDX--;
+		//jnz		lpp0
+		if (TmpEDX != 0) goto lpp0;
+	uu3 : 
+		//pop		edi
+		//pop		esi
+		;
 	};
 };
 bool SafeLoad = 0;
@@ -5224,17 +5255,40 @@ void SQPicture::LoadPicture( char* name )
 			PicPtr[1] = Ly;
 			int pptr = int( PicPtr + 2 );
 			int Len = Lx*Ly;
-			__asm {
-				push	esi
-				mov		ecx, Len
-				mov		esi, pptr
-				lll : cmp		byte ptr[esi], 0xFF
-					  jne		uuu
-					  mov		byte ptr[esi], 0xF6
-					  uuu : inc		esi
-							dec		ecx
-							jnz		lll
-							pop		esi
+			// BoonXRay 06.08.2017
+			//__asm {
+			//	push	esi
+			//	mov		ecx, Len
+			//	mov		esi, pptr
+			//	lll : cmp		byte ptr[esi], 0xFF
+			//		  jne		uuu
+			//		  mov		byte ptr[esi], 0xF6
+			//		  uuu : inc		esi
+			//				dec		ecx
+			//				jnz		lll
+			//				pop		esi
+			//};
+			//__asm 
+			{
+				//push	esi
+				//mov		ecx, Len
+				unsigned int TmpECX = Len;
+				//mov		esi, pptr
+				unsigned int TmpESI = pptr;
+			lll : 
+				//cmp		byte ptr[esi], 0xFF
+				//jne		uuu
+				if (*reinterpret_cast<unsigned char *>(TmpESI) != 0xFF) goto uuu;
+				//mov		byte ptr[esi], 0xF6
+				*reinterpret_cast<unsigned char *>(TmpESI) = 0xF6;
+			uuu : 
+				//inc		esi
+				TmpESI++;
+				//dec		ecx
+				TmpECX--;
+				//jnz		lll
+				if (TmpECX != 0) goto lll;
+				//pop		esi
 			};
 		}
 		else PicPtr = nullptr;
@@ -5742,253 +5796,4 @@ DialogsSystem::~DialogsSystem()
 	CloseDialogs();
 	UnPress();
 };
-//transparency effect
 
-byte* TransPtr = nullptr;
-int TransLx = 0;
-int TransLy = 0;
-void MakeTranspSnapshot()
-{
-	if (RealLx != TransLx || RealLy != TransLy)
-	{
-		TransPtr = (byte*) realloc( TransPtr, RealLx*RealLy );
-		TransLx = RealLx;
-		TransLy = RealLy;
-	};
-	for (int i = 0; i < RealLy; i++)
-	{
-		memcpy( TransPtr + i*RealLx, (byte*) ScreenPtr + i*ScrWidth, RealLx );
-	};
-};
-void FreeTransBuffer()
-{
-	if (TransPtr)free( TransPtr );
-	TransPtr = nullptr;
-	TransLx = 0;
-	TransLy = 0;
-};
-void EncodeLine( byte* src, byte* dst, byte* scr, byte* tbl, byte* oddtbl )
-{
-	int N = TransLx >> 1;
-	__asm {
-		push esi
-		push edi
-		push ebx
-		mov  esi, tbl
-		mov  edi, oddtbl
-		mov  ebx, scr
-		mov  edx, src
-		mov  ecx, dst
-		LPP1 :
-		mov  al, [edx]
-			mov  ah, [ecx]
-			mov  al, [esi + eax]
-			mov[ebx], al
-			inc  edx
-			inc  ecx
-			inc  ebx
-			mov  al, [edx]
-			mov  ah, [ecx]
-			mov  al, [edi + eax]
-			mov[ebx], al
-			inc  edx
-			inc  ecx
-			inc  ebx
-			dec  N
-			jnz  LPP1
-
-			pop  ebx
-			pop  edi
-			pop  esi
-	};
-};
-void EncodeLine1( byte* src, byte* dst, byte* scr, byte* tbl )
-{
-	int N = TransLx >> 1;
-	__asm {
-		push esi
-		push edi
-		push ebx
-		mov  esi, tbl
-		mov  edi, tbl
-		mov  ebx, scr
-		mov  edx, src
-		mov  ecx, dst
-		LPP1 :
-		mov  al, [edx]
-			mov  ah, [ecx]
-			mov  al, [esi + eax]
-			mov[ebx], al
-			inc  edx
-			inc  ecx
-			inc  ebx
-			mov  ah, [ecx]
-			mov[ebx], ah
-			inc  edx
-			inc  ecx
-			inc  ebx
-			dec  N
-			jnz  LPP1
-
-			pop  ebx
-			pop  edi
-			pop  esi
-	};
-};
-void EncodeLine2( byte* src, byte* dst, byte* scr, byte* tbl )
-{
-	int N = TransLx >> 1;
-	__asm {
-		push esi
-		push edi
-		push ebx
-		mov  esi, tbl
-		mov  edi, tbl
-		mov  ebx, scr
-		mov  edx, src
-		mov  ecx, dst
-		LPP1 :
-		mov  ah, [ecx]
-			mov[ebx], ah
-			inc  edx
-			inc  ecx
-			inc  ebx
-			mov  al, [edx]
-			mov  ah, [ecx]
-			mov  al, [edi + eax]
-			mov[ebx], al
-			inc  edx
-			inc  ecx
-			inc  ebx
-			dec  N
-			jnz  LPP1
-
-			pop  ebx
-			pop  edi
-			pop  esi
-	};
-};
-extern byte trans4[65536];
-extern byte trans8[65536];
-void PerformTransMix( int degree )
-{
-	int N = TransLy >> 1;
-	switch (degree)
-	{
-	case 0:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine1( transp, screen, screen, trans4 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine2( transp, screen, screen, trans4 );
-		};
-	};
-	break;
-	case 1:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine( transp, screen, screen, trans4, trans4 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine( transp, screen, screen, trans4, trans4 );
-		};
-	};
-	break;
-	case 2:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine( transp, screen, screen, trans8, trans4 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine( transp, screen, screen, trans4, trans8 );
-		};
-	};
-	break;
-	case 3:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine( transp, screen, screen, trans8, trans8 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine( transp, screen, screen, trans8, trans8 );
-		};
-	};
-	break;
-	case 4:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine( screen, transp, screen, trans4, trans8 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine( screen, transp, screen, trans8, trans4 );
-		};
-	};
-	break;
-	case 5:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine( screen, transp, screen, trans4, trans4 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine( screen, transp, screen, trans4, trans4 );
-		};
-	};
-	break;
-	case 6:
-	{
-		for (int i = 0; i < N; i++)
-		{
-			byte* screen = (byte*) ScreenPtr + i * 2 * ScrWidth;
-			byte* transp = (byte*) TransPtr + i * 2 * TransLx;
-			EncodeLine1( screen, transp, screen, trans4 );
-			screen += ScrWidth;
-			transp += TransLx;
-			EncodeLine2( screen, transp, screen, trans4 );
-		};
-	};
-	break;
-	};
-};
-int Time0 = 0;
-void StartMixing()
-{
-	Time0 = GetTickCount();
-	MakeTranspSnapshot();
-};
-void ProcessMixing()
-{
-	int idx = ( GetTickCount() - Time0 ) / 50;
-	if (idx <= 8)
-	{
-		idx--;
-		if (idx < 0)idx = 0;
-		if (idx > 6)idx = 6;
-		if (TransPtr)
-		{
-			PerformTransMix( 6 - idx );
-		};
-	}
-	else
-	{
-		FreeTransBuffer();
-	};
-};

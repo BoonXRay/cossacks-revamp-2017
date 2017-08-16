@@ -1128,8 +1128,6 @@ public:
 	short bm_PrevTopDst;
 	word Guard;
 	word bm_NextTop;
-	void CreateSmartPath( int x, int y, int dx, int dy );
-	void FindNextSmartPoint();
 	//----------------------------------------
 
 	byte NZalp;
@@ -1273,8 +1271,6 @@ public:
 	void CreateSimplePath( int x1, int y1 );
 	bool CreatePrePath( int x1, int y1 );
 	bool CreatePrePath2( int x1, int y1 );
-	bool CreatePrePath4( int x1, int y1 );
-	void ProcessNewMotion();
 	void FreeAsmLink();
 	void Die();
 	void Eliminate();
@@ -1355,25 +1351,45 @@ public:
 
 	inline int DistTo( int xx, int yy )
 	{
-		__asm
+		// BoonXRay 06.08.2017
+		//__asm
 		{
-			mov		eax, xx
-			mov		ebx, this
-			mov		edx, [ebx]this.x
-			sub		eax, edx
-			jge		uui
-			neg		eax
-			uui : mov		ecx, yy
-				  mov		edx, [ebx]this.y
-				  sub		ecx, edx
-				  jge		uux
-				  neg		ecx
-				  uux : cmp		ecx, eax
-						jl		uuz
-						mov		eax, ecx
-						uuz :
+			//mov		eax, xx
+			int TmpEAX = xx;
+			//mov		ebx, this
+			//mov		edx, [ebx]this.x
+			int TmpEDX = this->x;
+			//sub		eax, edx
+			bool flag1 = TmpEAX >= TmpEDX;
+			TmpEAX -= TmpEDX;
+			//jge		uui
+			if (flag1) goto uui;
+			//neg		eax
+			TmpEAX *= -1;
+			int TmpECX;
+		uui :
+			//mov		ecx, yy
+			TmpECX = yy;
+			//mov		edx, [ebx]this.y
+			TmpEDX = this->y;
+			//sub		ecx, edx
+			bool flag2 = TmpECX >= TmpEDX;
+			TmpECX -= TmpEDX;
+			//jge		uux
+			if (flag2) goto uux;
+			//neg		ecx
+			TmpECX *= -1;
+		uux :
+			//cmp		ecx, eax
+			//jl		uuz
+			//mov		eax, ecx
+			if (TmpECX < TmpEAX) goto uuz;
+			TmpEAX = TmpECX;
+		uuz:
+			return TmpEAX;
 		}
-	};
+	};	
+
 	void CloseObject();
 };
 
@@ -1779,10 +1795,6 @@ extern int	smaply;
 extern int minix;
 extern int	miniy;
 
-void MakePostProcess();
-void MakeWPostProcess();
-void PrepareProcessing();
-
 extern int Flips;
 extern int	mapx;
 extern int	mapy;
@@ -1924,7 +1936,6 @@ void InitAllGame();
 
 //x,y-coordinates of point on the 2D plane (unit:pix)
 //returnfs index of building,otherwise 0xFFFF
-word DetermineBuilding( int x, int y, byte NMask );
 bool Create3DAnmObject( Weapon* Weap, int xs, int ys, int zs1,
 	int xd, int yd, int zd,
 	OneObject* OB, byte AttType, word DestObj );

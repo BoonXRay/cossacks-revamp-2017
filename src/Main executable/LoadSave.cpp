@@ -43,10 +43,6 @@ extern int LightDY;
 extern int LightDZ;
 extern word NNewMon;
 extern NewMonster NewMon[512];
-extern word NucList[128];
-extern word NucSN[128];
-extern bool NDone[128];
-extern word NNuc;
 char GameName[128];
 extern City CITY[8];
 extern bool EUsage[8192];
@@ -620,10 +616,6 @@ void UnLoading()
 
 	UnitsField.ClearMaps();
 	memset( EUsage, 0, sizeof EUsage );
-	NNuc = 0;
-	memset( NucList, 0, sizeof NucList );
-	memset( NucSN, 0, sizeof NucSN );
-	memset( NDone, 0, sizeof NDone );
 	memset( WRefs, 0, VAL_MAXCIOFS * 4 * 4 );
 	ClearTopChange();
 	StopDynamicalTopology();

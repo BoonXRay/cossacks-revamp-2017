@@ -1656,15 +1656,17 @@ void InitSelection()
 {
 	int sz = ( MAXOBJECT >> 2 ) + 128;
 	if ( sz > 16384 )sz = 16384;
-	__asm {
-		push	edi
-		mov		ecx, sz
-		cld
-		xor		eax, eax
-		mov		edi, offset CmdDone
-		rep		stosd
-		pop		edi
-	};
+	// BoonXRay 13.08.2017
+	//__asm {
+	//	push	edi
+	//	mov		ecx, sz
+	//	cld
+	//	xor		eax, eax
+	//	mov		edi, offset CmdDone
+	//	rep		stosd
+	//	pop		edi
+	//};
+	memset(CmdDone, 0, sz * sizeof(int));
 };
 
 
@@ -5254,15 +5256,6 @@ void ExecuteBuffer()
 	}
 }
 
-void CmdSelBrigade( byte NI, word ID )
-{
-
-	ExBuf[EBPos] = 200;
-	ExBuf[EBPos + 1] = NI;
-	*( (word*) ( ExBuf + EBPos + 2 ) ) = ID;
-	EBPos += 4;
-
-};
 int _implSelBrigade( byte* Ptr )
 {
 	byte NI = Ptr[0];
@@ -5296,15 +5289,7 @@ int _implSelBrigade( byte* Ptr )
 	NSL[NI] = NS;
 	return 3;
 };
-void CmdUnSelBrigade( byte NI, word ID )
-{
 
-	ExBuf[EBPos] = 201;
-	ExBuf[EBPos + 1] = NI;
-	*( (word*) ( ExBuf + EBPos + 2 ) ) = ID;
-	EBPos += 4;
-
-};
 int _implUnSelBrigade( byte* Ptr )
 {
 	byte NI = Ptr[0];

@@ -20,8 +20,6 @@ struct AskMove{
 	char dx;
 	char dy;
 };
-extern int NAsk;//Количество запросов
-extern AskMove Ask[8192];//Массив запросов
 
 class CSum{
 	int* lpInt;
@@ -70,42 +68,10 @@ void GETALL(){
 	for(int i=0;i<NSum;i++)	SMS[i].GetSum();
 #endif
 };
-//Asks array integrity checking
-void CheckAsks(){
-	for(int i=0;i<NAsk;i++){
-		word ID=Ask[i].ReqID;
-		OneObject* OB=Group[ID];
-		//assert(OB&&OB->x==Ask[i].x&&Ask[i].y==OB->y);
-	};
-};
+
 static int dd=0;
 int CheckSum;
-void AddCS(void* Src,int sz){
-    int cc=int(Src);
-    __asm{
-        push    esi
-        xor     eax,eax
-        mov     ecx,sz
-        shr     ecx,2
-        jcxz    kpp
-        mov     esi,cc
-kpp0:   add     eax,[esi]
-        add     esi,4
-        dec     ecx
-        jnz     kpp0
-kpp:    add     CheckSum,eax
-        pop     esi
-    };
-};
-/*
-void CreateProtection(){
-    CheckSumm=0;
-    //Images;
-    for(int i=0;i<NRMIma
 
-
-};
-*/
 void CHKALL(){
 	//for(int i=0;i<NSum;i++)assert(SMS[i].ChkSum());
 	//assert(_CrtCheckMemory);

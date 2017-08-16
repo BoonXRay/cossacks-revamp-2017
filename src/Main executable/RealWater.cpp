@@ -60,121 +60,6 @@ extern byte WaterCost[65536];
 
 #define WaterLevel 0
 
-void ExtrapolateCell(int x, int y) 
-{
-	int xn, yn;
-	do 
-	{
-		xn = rand() & 63;
-		yn = rand() & 63;
-	} while (!(xn > 1 && yn > 1 && xn < smaplx - 1 && yn < smaply - 1 && x != xn&&y != yn));
-	//copy
-	int xxx = (x + mapx) & 31;
-	int yyy = (y + mapy) & 31;
-	int src = (xxx << 4) + ((yyy << 9));
-	int dst = (8 + (x << 3) + ((y << 3) + 8)*WaveLx) << 1;
-	int DWx = WaveLx - 16;
-	int SW0 = int(ScWave0);
-	int W0 = int(Wave0);
-	int SW1 = int(ScWave1);
-	int W1 = int(Wave1);
-	int SW2 = int(ScWave2);
-	int W2 = int(Wave2);
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		esi, SW0
-		add		esi, src
-		mov		edi, W0
-		add		esi, dst
-		mov		ecx, 8
-		uuu1:
-		mov		eax, [esi]
-			mov		edx, [esi + 4]
-			mov[edi], eax
-			mov[edi + 4], edx
-			mov		eax, [esi + 8]
-			mov		edx, [esi + 12]
-			mov[edi + 8], eax
-			mov[edi + 12], edx
-			add		esi, WaveLx * 2
-			add		edi, 512
-			dec		ecx
-			jnz		uuu1
-
-			mov		esi, SW1
-			add		esi, src
-			mov		edi, W1
-			add		esi, dst
-			mov		ecx, 8
-			uuu2:
-		mov		eax, [esi]
-			mov		edx, [esi + 4]
-			mov[edi], eax
-			mov[edi + 4], edx
-			mov		eax, [esi + 8]
-			mov		edx, [esi + 12]
-			mov[edi + 8], eax
-			mov[edi + 12], edx
-			add		esi, WaveLx * 2
-			add		edi, 512
-			dec		ecx
-			jnz		uuu2
-
-			mov		esi, SW2
-			add		esi, src
-			mov		edi, W2
-			add		esi, dst
-			mov		ecx, 8
-			uuu3:
-		mov		eax, [esi]
-			mov		edx, [esi + 4]
-			mov[edi], eax
-			mov[edi + 4], edx
-			mov		eax, [esi + 8]
-			mov		edx, [esi + 12]
-			mov[edi + 8], eax
-			mov[edi + 12], edx
-			add		esi, WaveLx * 2
-			add		edi, 512
-			dec		ecx
-			jnz		uuu3
-
-			popf
-			pop		edi
-			pop		esi
-
-	};
-	//for(int i=0;i<8;i++){
-		/*
-		memcpy(Wave0+dst,Wave0+src,16);
-		memcpy(Wave1+dst,Wave1+src,16);
-		memcpy(Wave2+dst,Wave2+src,16);
-		if(i<2||i>5){
-			for(int j=0;j<8;j++){
-				Wave0[dst+j]=(Wave0[dst+j+1]+Wave0[dst+j-1]+Wave0[dst+j-WaveLx]+Wave0[dst+j+WaveLx])>>2;
-				Wave1[dst+j]=(Wave1[dst+j+1]+Wave1[dst+j-1]+Wave1[dst+j-WaveLx]+Wave1[dst+j+WaveLx])>>2;
-				Wave2[dst+j]=(Wave2[dst+j+1]+Wave2[dst+j-1]+Wave2[dst+j-WaveLx]+Wave2[dst+j+WaveLx])>>2;
-			};
-		};
-		Wave0[dst]=(Wave0[dst+1]+Wave0[dst-1])>>1;
-		Wave1[dst]=(Wave1[dst+1]+Wave1[dst-1])>>1;
-		Wave2[dst]=(Wave2[dst+1]+Wave2[dst-1])>>1;
-		Wave0[dst+7]=(Wave0[dst+8]+Wave0[dst+6])>>1;
-		Wave1[dst+7]=(Wave1[dst+8]+Wave1[dst+6])>>1;
-		Wave2[dst+7]=(Wave2[dst+8]+Wave2[dst+6])>>1;
-		*/
-		//src+=WaveLx;
-		//dst+=WaveLx;
-	//};
-};
-void ExtrapolateSurface(int x, int y, int Nx, int Ny) {
-	for (int ix = 0; ix < Nx; ix++)
-		for (int iy = 0; iy < Ny; iy++) {
-			ExtrapolateCell(x + ix, y + iy);
-		};
-};
 void GenerateSurface(int x, int y, int Lx, int Ly) {
 	int pos = x + y*WaveLx;
 	int WaveAdd = WaveLx - Lx;
@@ -244,14 +129,6 @@ void SetPoint(short* Wave, int x, int y, int r, int h) {
 
 }
 
-void SetSpot(int x, int y)
-{
-	int h = (rand() & 4096);
-	SetPoint(Wave0, x >> 2, y >> 1, 2, h);
-	SetPoint(Wave1, x >> 2, y >> 1, 2, h);
-	SetPoint(Wave2, x >> 2, y >> 1, 2, h);
-}
-
 #define ash 6
 
 void InitWater()
@@ -299,118 +176,6 @@ void InitWater()
 	GenerateSurface(2, 2, WaveLx - 4, WaveLy - 4);
 	CurStage = 0;
 }
-
-void ProcessWaves1(short* wave0, short* wave1, short* wave2, int xx, int yy, int Lx, int Ly) {
-	int StWave = (xx + yy*WaveLx) << 1;
-	int DWave = (WaveLx - Lx) << 1;
-	int cyc = Ly;
-	int cyc1;
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, wave0
-		mov		edi, wave1
-		mov		ebx, wave2
-		mov		edx, StWave
-
-		lpp1 : mov		ecx, Lx
-			   mov		cyc1, ecx
-			   lpp2 : mov		ax, [edi + edx + 2]
-					  add		ax, [edi + edx - 2]
-					  add		ax, [edi + edx - WaveLx * 2]
-					  add		ax, [edi + edx + WaveLx * 2]
-					  mov		cx, [edi + edx]
-					  sal		cx, 1
-					  sub		ax, cx
-					  sub		ax, cx
-
-					  sar		ax, 3
-					  add		ax, cx
-					  sub		ax, [esi + edx]
-					  mov		cx, ax
-					  sar		cx, 16
-					  sub		ax, cx
-					  mov[ebx + edx], ax
-					  add		edx, 2
-					  dec		cyc1
-					  jnz		lpp2
-					  add		edx, DWave
-					  dec		cyc
-					  jnz		lpp1
-					  pop		edi
-					  pop		esi
-	};
-};
-void ProcessWaves(short* wave0, short* wave1, short* wave2, int xx, int yy, int Lx, int Ly) {
-	ProcessWaves1(wave0, wave1, wave2, xx, yy, Lx, Ly);
-	return;
-	int StWave = (xx + yy*WaveLx) << 1;
-	int DWave = (WaveLx - Lx) << 1;
-	int cyc = Ly;
-	int cyc1;
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, wave0
-		mov		edi, wave1
-		mov		ebx, wave2
-		mov		edx, StWave
-
-		lpp1 : mov		ecx, Lx
-			   mov		cyc1, ecx
-			   lpp2 : mov		ax, [edi + edx + 2]
-					  add		ax, [edi + edx - 2]
-					  add		ax, [edi + edx - WaveLx * 2]
-					  add		ax, [edi + edx + WaveLx * 2]
-					  mov		cx, [edi + edx]
-					  sal		cx, 1
-					  sub		ax, cx
-					  sub		ax, cx
-					  sar		ax, 4
-					  add		ax, cx
-					  sub		ax, [esi + edx]
-					  mov[ebx + edx], ax
-					  add		edx, 2
-					  dec		cyc1
-					  jnz		lpp2
-					  add		edx, DWave
-					  dec		cyc
-					  jnz		lpp1
-					  pop		edi
-					  pop		esi
-	};
-};
-
-void ProcessWaveFrame(short* Wave, int x, int y, int x1, int y1) {
-	int pos1 = x + y*WaveLx;
-	int dh = 0;
-	for (int i = x; i <= x1; i++) {
-		dh = ((dh + dh + dh) >> 2) + (rand() & 63) - 31;
-		Wave[pos1] = Wave[pos1 + WaveLx] + dh;
-		pos1++;
-	};
-	pos1 = x + y1*WaveLx;
-	dh = 0;
-	for (int i = x; i <= x1; i++) {
-		dh = ((dh + dh + dh) >> 2) + (rand() & 63) - 31;
-		Wave[pos1] = Wave[pos1 - WaveLx] + dh;
-		pos1++;
-	};
-	pos1 = x + y*WaveLx + WaveLx;
-	dh = 0;
-	for (int i = y + 1; i <= y1 - 1; i++) {
-		dh = ((dh + dh + dh) >> 2) + (rand() & 63) - 31;
-		Wave[pos1] = Wave[pos1 + 1] + dh;
-		pos1 += WaveLx;
-	};
-	pos1 = x1 + y*WaveLx + WaveLx;
-	dh = 0;
-	for (int i = y + 1; i <= y1 - 1; i++) {
-		dh = ((dh + dh + dh) >> 2) + (rand() & 63) - 31;
-		Wave[pos1] = Wave[pos1 - 1] + dh;
-		pos1 += WaveLx;
-	};
-};
 
 //FINAL WATER MAP
 extern int WMPSIZE;
@@ -465,11 +230,6 @@ void InitCost()
 			}
 		}
 	}
-}
-
-double ExSin(double x)
-{
-	return sin(x + sin(x));
 }
 
 void ProcessCost()
@@ -668,430 +428,6 @@ void ClearGoodDeepSpot(int x, int y, int r, int dr, int dh) {
 	ClearDeepSpot(x, y, r0, r1 - r0 + 1, dh);
 };
 #define ashift 7
-void DrawCost(int x, int y, short* Wave, int z1, int z2, int z3, int z4, int Msh) {
-	int ASHI = 1024 + Msh;
-	if (z1 < 128 && z2 < 128 && z3 < 128 && z4 < 128)return;
-	if (z1 > 143 && z2 > 143 && z3 > 143 && z4 > 143) {
-		//simple copy
-		int ofst = int(ScreenPtr) + x + y*ScrWidth;
-		__asm {
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, Wave
-			mov		edi, ofst
-			mov		cx, 0x0808
-			mov		edx, ScrWidth
-			lpp2 : xor		ebx, ebx
-				   mov		bx, [esi + WaveLx * 2]
-				   sub		bx, [esi - WaveLx * 2]
-				   test	bx, 0x8000
-				   jz		lpp3
-				   or ebx, 0xFFFF0000
-				   lpp3 : sar		ebx, ashift
-						  //add		ebx,1024
-						  add		ebx, ASHI
-						  mov		eax, [Colors4 + ebx * 4]
-						  stosd
-						  mov[edi + edx - 2], eax
-						  add		esi, 2
-						  dec		cl
-						  jnz		lpp2
-						  add		edi, edx
-						  add		esi, (WaveLx * 2) - 16
-						  add		edi, edx
-						  mov		cl, 8
-
-						  sub		edi, 32
-						  dec		ch
-						  jnz		lpp2
-						  popf
-						  pop		edi
-						  pop		esi
-		};
-	}
-	else {
-		;
-		int ofst = int(ScreenPtr) + x + y*ScrWidth;
-		z1 <<= 16;
-		z2 <<= 16;
-		z3 <<= 16;
-		z4 <<= 16;
-		int a = z1;
-		int b = (z2 - z1) >> 5;
-		int a0 = a;
-		int c = (z3 - z1) >> 3;
-		int d = (z1 + z4 - z2 - z3) >> 8;
-		int cyc2 = 8;
-		int cyc1;
-		__asm {
-			//curved clipping
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, Wave
-			mov		edi, ofst
-			mov		edx, ScrWidth
-			lpp1C : mov		cyc1, 8
-					lpp2C : xor		ebx, ebx
-							mov		bx, [esi + WaveLx * 2]
-							sub		bx, [esi - WaveLx * 2]
-							test	bx, 0x8000
-							jz		lpp3C
-							or ebx, 0xFFFF0000
-							lpp3C : sar		ebx, ashift
-									//add		ebx,1024
-									add		ebx, ASHI
-									mov		eax, [Colors4 + ebx * 4]
-									mov		ecx, eax
-									sub		cl, 0xB0
-									and cl, 0xF
-									//transparency
-									xor eax, eax
-									mov		ebx, a
-									cmp		ebx, 0x00800000
-									jb		lpp4_1
-									cmp		ebx, 0x00900000
-									jae		lpp4_2
-									//transparent
-									mov		eax, ebx
-									sub		eax, 0x00800000
-									sar		eax, 12
-									and eax, 0xF0
-									or al, cl
-									mov		ah, [edi]
-									mov		al, [WaterCost + eax]
-									stosb
-									mov[edi + edx + 1], al
-									jmp		lpp4_3
-									lpp4_2 : mov[edi], ch
-											 mov[edi + edx + 2], ch
-											 lpp4_1 : inc		edi
-													  lpp4_3 : add		ebx, b
-															   add		ebx, 0x10000
-															   cmp		ebx, 0x00800000
-															   jb		lpp5_1
-															   cmp		ebx, 0x00900000
-															   jae		lpp5_2
-															   //transparent
-															   mov		eax, ebx
-															   sub		eax, 0x00800000
-															   sar		eax, 12
-															   and eax, 0xF0
-															   or al, cl
-															   mov		ah, [edi]
-															   mov		al, [WaterCost + eax]
-															   stosb
-															   mov[edi + edx + 1], al
-															   jmp		lpp5_3
-															   lpp5_2 : mov[edi], ch
-																		mov[edi + edx + 2], ch
-																		lpp5_1 : inc		edi
-																				 lpp5_3 : add		ebx, b
-																						  sub		ebx, 0x10000
-																						  cmp		ebx, 0x00800000
-																						  jb		lpp6_1
-																						  cmp		ebx, 0x00900000
-																						  jae		lpp6_2
-																						  //transparent
-																						  mov		eax, ebx
-																						  sub		eax, 0x00800000
-																						  sar		eax, 12
-																						  and eax, 0xF0
-																						  or al, cl
-																						  mov		ah, [edi]
-																						  mov		al, [WaterCost + eax]
-																						  stosb
-																						  mov[edi + edx + 1], al
-																						  jmp		lpp6_3
-																						  lpp6_2 : mov[edi], ch
-																								   mov[edi + edx + 2], ch
-																								   lpp6_1 : inc		edi
-																											lpp6_3 : add		ebx, b
-																													 add		ebx, 0x10000
-																													 cmp		ebx, 0x00800000
-																													 jb		lpp7_1
-																													 cmp		ebx, 0x00900000
-																													 jae		lpp7_2
-																													 //transparent
-																													 mov		eax, ebx
-																													 sub		eax, 0x00800000
-																													 sar		eax, 12
-																													 and eax, 0xF0
-																													 or al, cl
-																													 mov		ah, [edi]
-																													 mov		al, [WaterCost + eax]
-																													 stosb
-																													 mov[edi + edx + 1], al
-																													 jmp		lpp7_3
-																													 lpp7_2 : mov[edi], ch
-																															  mov[edi + edx + 2], ch
-																															  lpp7_1 : inc		edi
-																																	   lpp7_3 : add		ebx, b
-																																				sub		ebx, 0x10000
-																																				mov		a, ebx
-																																				add		esi, 2
-																																				dec		cyc1
-																																				jnz		lpp2C
-																																				add		edi, edx
-																																				add		esi, (WaveLx * 2) - 16
-																																				add		edi, edx
-																																				mov		ebx, a0
-																																				add		ebx, c
-																																				mov		a, ebx
-																																				mov		a0, ebx
-																																				mov		ebx, b
-																																				add		ebx, d
-																																				mov		b, ebx
-																																				sub		edi, 32
-																																				dec		cyc2
-																																				jnz		lpp1C
-																																				popf
-																																				pop		edi
-																																				pop		esi
-		}
-	}
-}
-
-#define CostCL 0x3D
-
-void DrawCost2(int x, int y, short* Wave, int z1, int z2, int z3, int z4, int Msh, int Msh1) 
-{
-	int ASHI = 1024 + Msh;
-	int ASHI1 = 1024 + Msh1;
-	if (z1 < 128 && z2 < 128 && z3 < 128 && z4 < 128)
-	{
-		return;
-	}
-
-	if (z1 > 143 && z2 > 143 && z3 > 143 && z4 > 143) 
-	{
-		//simple copy
-		int ofst = int(ScreenPtr) + x + y*ScrWidth;
-		__asm {
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, Wave
-			mov		edi, ofst
-			mov		cx, 0x0408
-			mov		edx, ScrWidth
-			lpp2 : xor		ebx, ebx
-				   mov		bx, [esi + WaveLx * 2]
-				   sub		bx, [esi - WaveLx * 2]
-				   test	bx, 0x8000
-				   jz		lpp3
-				   or ebx, 0xFFFF0000
-				   lpp3 : sar		ebx, ashift
-						  //add		ebx,1024
-						  add		ebx, ASHI
-						  mov		eax, [Colors4 + ebx * 4]
-						  stosd
-						  mov[edi + edx - 2], eax
-						  add		esi, 2
-						  dec		cl
-						  jnz		lpp2
-						  add		edi, edx
-						  add		esi, (WaveLx * 2) - 16
-						  add		edi, edx
-						  mov		cl, 4
-						  sub		edi, 32
-
-						  lpp2_1:		xor		ebx, ebx
-										mov		bx, [esi + WaveLx * 2]
-										sub		bx, [esi - WaveLx * 2]
-										test	bx, 0x8000
-										jz		lpp3_1
-										or ebx, 0xFFFF0000
-										lpp3_1 : sar		ebx, ashift
-												 //add		ebx,1024
-												 add		ebx, ASHI
-												 mov		eax, [Colors4 + ebx * 4]
-												 stosd
-												 mov[edi + edx - 2], eax
-												 add		esi, 2
-												 dec		cl
-												 jnz		lpp2_1
-												 //add		edi,edx
-												 //add		esi,(WaveLx*2)-16
-												 //add		edi,edx
-												 mov		cl, 4
-
-												 lpp2_2:		xor		ebx, ebx
-																mov		bx, [esi + WaveLx * 2]
-																sub		bx, [esi - WaveLx * 2]
-																test	bx, 0x8000
-																jz		lpp3_2
-																or ebx, 0xFFFF0000
-																lpp3_2 : sar		ebx, ashift
-																		 //add		ebx,1024
-																		 add		ebx, ASHI1
-																		 mov		eax, [Colors4 + ebx * 4]
-																		 stosd
-																		 mov[edi + edx - 2], eax
-																		 add		esi, 2
-																		 dec		cl
-																		 jnz		lpp2_2
-																		 add		edi, edx
-																		 add		esi, (WaveLx * 2) - 16
-																		 add		edi, edx
-																		 mov		cl, 8
-																		 sub		edi, 32
-
-																		 dec		ch
-																		 jnz		lpp2
-																		 popf
-																		 pop		edi
-																		 pop		esi
-		}
-	}
-	else 
-	{
-		int ofst = int(ScreenPtr) + x + y*ScrWidth;
-		z1 <<= 16;
-		z2 <<= 16;
-		z3 <<= 16;
-		z4 <<= 16;
-		int a = z1;
-		int b = (z2 - z1) >> 5;
-		int a0 = a;
-		int c = (z3 - z1) >> 3;
-		int d = (z1 + z4 - z2 - z3) >> 8;
-		int cyc2 = 8;
-		int cyc1;
-		__asm 
-		{
-			//curved clipping
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, Wave
-			mov		edi, ofst
-			mov		edx, ScrWidth
-			lpp1C : mov		cyc1, 8
-					lpp2C : xor		ebx, ebx
-							mov		bx, [esi + WaveLx * 2]
-							sub		bx, [esi - WaveLx * 2]
-							test	bx, 0x8000
-							jz		lpp3C
-							or ebx, 0xFFFF0000
-							lpp3C : sar		ebx, ashift
-									//add		ebx,1024
-									add		ebx, ASHI
-									mov		eax, [Colors4 + ebx * 4]
-									mov		ecx, eax
-									sub		cl, 0xB0
-									and cl, 0xF
-									//transparency
-									xor eax, eax
-									mov		ebx, a
-									cmp		ebx, 0x00800000
-									jb		lpp4_1
-									cmp		ebx, 0x00900000
-									jae		lpp4_2
-									//transparent
-									mov		eax, ebx
-									sub		eax, 0x00800000
-									sar		eax, 12
-									and eax, 0xF0
-									or al, cl
-									mov		ah, CostCL//[edi]
-									mov		al, [WaterCost + eax]
-									stosb
-									mov[edi + edx + 1], al
-									jmp		lpp4_3
-									lpp4_2 : mov[edi], ch
-											 mov[edi + edx + 2], ch
-											 lpp4_1 : inc		edi
-													  lpp4_3 : add		ebx, b
-															   add		ebx, 0x10000
-															   cmp		ebx, 0x00800000
-															   jb		lpp5_1
-															   cmp		ebx, 0x00900000
-															   jae		lpp5_2
-															   //transparent
-															   mov		eax, ebx
-															   sub		eax, 0x00800000
-															   sar		eax, 12
-															   and eax, 0xF0
-															   or al, cl
-															   mov		ah, CostCL//[edi]
-															   mov		al, [WaterCost + eax]
-															   stosb
-															   mov[edi + edx + 1], al
-															   jmp		lpp5_3
-															   lpp5_2 : mov[edi], ch
-																		mov[edi + edx + 2], ch
-																		lpp5_1 : inc		edi
-																				 lpp5_3 : add		ebx, b
-																						  sub		ebx, 0x10000
-																						  cmp		ebx, 0x00800000
-																						  jb		lpp6_1
-																						  cmp		ebx, 0x00900000
-																						  jae		lpp6_2
-																						  //transparent
-																						  mov		eax, ebx
-																						  sub		eax, 0x00800000
-																						  sar		eax, 12
-																						  and eax, 0xF0
-																						  or al, cl
-																						  mov		ah, CostCL//[edi]
-																						  mov		al, [WaterCost + eax]
-																						  stosb
-																						  mov[edi + edx + 1], al
-																						  jmp		lpp6_3
-																						  lpp6_2 : mov[edi], ch
-																								   mov[edi + edx + 2], ch
-																								   lpp6_1 : inc		edi
-																											lpp6_3 : add		ebx, b
-																													 add		ebx, 0x10000
-																													 cmp		ebx, 0x00800000
-																													 jb		lpp7_1
-																													 cmp		ebx, 0x00900000
-																													 jae		lpp7_2
-																													 //transparent
-																													 mov		eax, ebx
-																													 sub		eax, 0x00800000
-																													 sar		eax, 12
-																													 and eax, 0xF0
-																													 or al, cl
-																													 mov		ah, CostCL//[edi]
-																													 mov		al, [WaterCost + eax]
-																													 stosb
-																													 mov[edi + edx + 1], al
-																													 jmp		lpp7_3
-																													 lpp7_2 : mov[edi], ch
-																															  mov[edi + edx + 2], ch
-																															  lpp7_1 : inc		edi
-																																	   lpp7_3 : add		ebx, b
-																																				sub		ebx, 0x10000
-																																				mov		a, ebx
-																																				add		esi, 2
-																																				dec		cyc1
-																																				jnz		lpp2C
-																																				add		edi, edx
-																																				add		esi, (WaveLx * 2) - 16
-																																				add		edi, edx
-																																				mov		ebx, a0
-																																				add		ebx, c
-																																				mov		a, ebx
-																																				mov		a0, ebx
-																																				mov		ebx, b
-																																				add		ebx, d
-																																				mov		b, ebx
-																																				sub		edi, 32
-																																				dec		cyc2
-																																				jnz		lpp1C
-																																				popf
-																																				pop		edi
-																																				pop		esi
-		}
-	}
-}
 
 void DrawCost1(int x, int y, short* Wave, int z1, int z2, int z3, int z4, int Msh, int Msh1) 
 {
@@ -1105,78 +441,158 @@ void DrawCost1(int x, int y, short* Wave, int z1, int z2, int z3, int z4, int Ms
 	if (z1 > 143 && z2 > 143 && z3 > 143 && z4 > 143) 
 	{
 		//simple copy
-		int ofst = int(ScreenPtr) + x + y*ScrWidth;
-		__asm 
+		// BoonXRay 13.08.2017
+		//int ofst = int(ScreenPtr) + x + y*ScrWidth;
+		//__asm
 		{
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, Wave
-			mov		edi, ofst
-			mov		cx, 0x0408
-			mov		edx, ScrWidth
-			lpp2 : xor		ebx, ebx
-				   mov		bx, [esi + WaveLx * 2]
-				   sub		bx, [esi - WaveLx * 2]
-				   test	bx, 0x8000
-				   jz		lpp3
-				   or ebx, 0xFFFF0000
-				   lpp3 : sar		ebx, ashift
-						  add		ebx, ASHI
-						  mov		eax, [Colors4 + ebx * 4]
-						  stosd
-						  mov[edi + edx - 2], eax
-						  add		esi, 2
-						  dec		cl
-						  jnz		lpp2
-						  add		edi, edx
-						  add		esi, (WaveLx * 2) - 16
-						  add		edi, edx
-						  mov		cl, 4
-						  sub		edi, 32
+			//push	esi
+			//push	edi
+			//pushf
+			//cld
+			//mov		esi, Wave
+			//mov		edi, ofst
+			//mov		cx, 0x0408
+			//mov		edx, ScrWidth
+			short * TmpESI = Wave;
+			unsigned char * TmpEDI = reinterpret_cast<unsigned char *>(ScreenPtr) + x + y*ScrWidth;
+			unsigned char TmpCL = 8, TmpCH = 4;
+			int TmpEAX, TmpEBX, TmpEDX = ScrWidth;
+			short & TmpBX = *reinterpret_cast<short *>(&TmpEBX);
+		lpp2 : 
+			//xor		ebx, ebx
+			//mov		bx, [esi + WaveLx * 2]
+			//sub		bx, [esi - WaveLx * 2]
+			//test	bx, 0x8000
+			//jz		lpp3
+			//or ebx, 0xFFFF0000
+			TmpEBX = 0;
+			TmpBX = TmpESI[WaveLx] - TmpESI[-WaveLx];
+			if ((TmpBX & 0x8000) == 0) goto lpp3;
+			TmpEBX |= 0xFFFF0000;
+		lpp3 : 
+			//sar		ebx, ashift
+			//add		ebx, ASHI
+			//mov		eax, [Colors4 + ebx * 4]
+			//stosd
+			//TmpEBX /= 128;	// ashift = 7
+			if (TmpEBX & 0x80000000)
+			{
+				TmpEBX >>= ashift;
+				TmpEBX |= 0xFE000000;
+			}
+			else TmpEBX >>= ashift;
+			TmpEBX += ASHI;
+			TmpEAX = Colors4[TmpEBX];
+			* reinterpret_cast<int *>(TmpEDI) = TmpEAX;
+			TmpEDI += 4;	// sizeof(int)
+			//mov[edi + edx - 2], eax
+			//add		esi, 2
+			//dec		cl
+			//jnz		lpp2
+			//add		edi, edx
+			//add		esi, (WaveLx * 2) - 16
+			//add		edi, edx
+			//mov		cl, 4
+			//sub		edi, 32
+			* reinterpret_cast<int *>(TmpEDI + TmpEDX - 2) = TmpEAX;
+			TmpESI++;
+			TmpCL--;
+			if (TmpCL != 0) goto lpp2;
+			TmpEDI += 2 * TmpEDX - 32;
+			TmpESI += WaveLx - 8;
+			TmpCL = 4;
 
-						  lpp2_1:		xor		ebx, ebx
-										mov		bx, [esi + WaveLx * 2]
-										sub		bx, [esi - WaveLx * 2]
-										test	bx, 0x8000
-										jz		lpp3_1
-										or ebx, 0xFFFF0000
-										lpp3_1 : sar		ebx, ashift
-												 add		ebx, ASHI
-												 mov		eax, [Colors4 + ebx * 4]
-												 stosd
-												 mov[edi + edx - 2], eax
-												 add		esi, 2
-												 dec		cl
-												 jnz		lpp2_1
-												 mov		cl, 4
+		lpp2_1:		
+			//xor		ebx, ebx
+			//mov		bx, [esi + WaveLx * 2]
+			//sub		bx, [esi - WaveLx * 2]
+			//test	bx, 0x8000
+			//jz		lpp3_1
+			//or ebx, 0xFFFF0000
+			TmpEBX = 0;
+			//TmpBX = *reinterpret_cast<unsigned short *>(TmpEDX);
+			TmpBX = TmpESI[WaveLx] - TmpESI[-WaveLx];
+			if ((TmpBX & 0x8000) == 0) goto lpp3_1;
+			TmpEBX |= 0xFFFF0000;
+		lpp3_1 : 
+			//sar		ebx, ashift
+			//add		ebx, ASHI
+			//mov		eax, [Colors4 + ebx * 4]
+			//stosd
+			//TmpEBX /= 128;	// ashift = 7
+			if (TmpEBX & 0x80000000)
+			{
+				TmpEBX >>= ashift;
+				TmpEBX |= 0xFE000000;
+			}
+			else TmpEBX >>= ashift;
+			TmpEBX += ASHI;
+			TmpEAX = Colors4[TmpEBX];
+			*reinterpret_cast<int *>(TmpEDI) = TmpEAX;
+			TmpEDI += 4;	// sizeof(int)
+			//mov[edi + edx - 2], eax
+			//add		esi, 2
+			//dec		cl
+			//jnz		lpp2_1
+			//mov		cl, 4
+			* reinterpret_cast<int *>(TmpEDI + TmpEDX - 2) = TmpEAX;
+			TmpESI++;
+			TmpCL--;
+			if (TmpCL != 0) goto lpp2_1;
+			TmpCL = 4;
 
-												 lpp2_2:		xor		ebx, ebx
-																mov		bx, [esi + WaveLx * 2]
-																sub		bx, [esi - WaveLx * 2]
-																test	bx, 0x8000
-																jz		lpp3_2
-																or ebx, 0xFFFF0000
-																lpp3_2 : sar		ebx, ashift
-																		 add		ebx, ASHI1
-																		 mov		eax, [Colors4 + ebx * 4]
-																		 stosd
-																		 mov[edi + edx - 2], eax
-																		 add		esi, 2
-																		 dec		cl
-																		 jnz		lpp2_2
-																		 add		edi, edx
-																		 add		esi, (WaveLx * 2) - 16
-																		 add		edi, edx
-																		 mov		cl, 8
-																		 sub		edi, 32
+		lpp2_2:		
+			//xor		ebx, ebx
+			//mov		bx, [esi + WaveLx * 2]
+			//sub		bx, [esi - WaveLx * 2]
+			//test	bx, 0x8000
+			//jz		lpp3_2
+			//or ebx, 0xFFFF0000
+			TmpEBX = 0;
+			//TmpBX = *reinterpret_cast<unsigned short *>(TmpEDX);
+			TmpBX = TmpESI[WaveLx] - TmpESI[-WaveLx];
+			if ((TmpBX & 0x8000) == 0) goto lpp3_2;
+			TmpEBX |= 0xFFFF0000;
+		lpp3_2 : 
+			//sar		ebx, ashift
+			//add		ebx, ASHI1
+			//mov		eax, [Colors4 + ebx * 4]
+			//stosd
+			//TmpEBX /= 128;	// ashift = 7
+			if (TmpEBX & 0x80000000)
+			{
+				TmpEBX >>= ashift;
+				TmpEBX |= 0xFE000000;
+			}
+			else TmpEBX >>= ashift;
+			TmpEBX += ASHI1;
+			TmpEAX = Colors4[TmpEBX];
+			*reinterpret_cast<int *>(TmpEDI) = TmpEAX;
+			TmpEDI += 4;	// sizeof(int)
+			//mov[edi + edx - 2], eax
+			//add		esi, 2
+			//dec		cl
+			//jnz		lpp2_2
+			//add		edi, edx
+			//add		esi, (WaveLx * 2) - 16
+			//add		edi, edx
+			//mov		cl, 8
+			//sub		edi, 32
+			* reinterpret_cast<int *>(TmpEDI + TmpEDX - 2) = TmpEAX;
+			TmpESI++;
+			TmpCL--;
+			if (TmpCL != 0) goto lpp2_2;
+			TmpEDI += 2 * TmpEDX - 32;
+			TmpESI += WaveLx - 8;
+			TmpCL = 8;
 
-																		 dec		ch
-																		 jnz		lpp2
-																		 popf
-																		 pop		edi
-																		 pop		esi
+			//dec		ch
+			//jnz		lpp2
+			//popf
+			//pop		edi
+			//pop		esi
+			TmpCH--;
+			if (TmpCH != 0) goto lpp2;
 		}
 	}
 	else 
@@ -1193,181 +609,282 @@ void DrawCost1(int x, int y, short* Wave, int z1, int z2, int z3, int z4, int Ms
 		int d = (z1 + z4 - z2 - z3) >> 8;
 		int cyc2 = 8;
 		int cyc1;
-		__asm 
+		// BoonXRay 13.08.2017
+		//__asm
 		{
 			//curved clipping
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, Wave
-			mov		edi, ofst
-			mov		edx, ScrWidth
-			lpp1C : mov		cyc1, 8
-					lpp2C : xor		ebx, ebx
-							mov		bx, [esi + WaveLx * 2]
-							sub		bx, [esi - WaveLx * 2]
-							test	bx, 0x8000
-							jz		lpp3C
-							or ebx, 0xFFFF0000
-							lpp3C : sar		ebx, ashift
-									//add		ebx,1024
-									add		ebx, ASHI
-									mov		eax, [Colors4 + ebx * 4]
-									mov		ecx, eax
-									sub		cl, 0xB0
-									and cl, 0xF
-									//transparency
-									xor eax, eax
-									mov		ebx, a
-									cmp		ebx, 0x00800000
-									jb		lpp4_1
-									cmp		ebx, 0x00900000
-									jae		lpp4_2
-									//transparent
-									mov		eax, ebx
-									sub		eax, 0x00800000
-									sar		eax, 12
-									and eax, 0xF0
-									or al, cl
-									mov		ah, [edi]
-									mov		al, [WaterCost + eax]
-									stosb
-									mov[edi + edx + 1], al
-									jmp		lpp4_3
-									lpp4_2 : mov[edi], ch
-											 mov[edi + edx + 2], ch
-											 lpp4_1 : inc		edi
-													  lpp4_3 : add		ebx, b
-															   add		ebx, 0x10000
-															   cmp		ebx, 0x00800000
-															   jb		lpp5_1
-															   cmp		ebx, 0x00900000
-															   jae		lpp5_2
-															   //transparent
-															   mov		eax, ebx
-															   sub		eax, 0x00800000
-															   sar		eax, 12
-															   and eax, 0xF0
-															   or al, cl
-															   mov		ah, [edi]
-															   mov		al, [WaterCost + eax]
-															   stosb
-															   mov[edi + edx + 1], al
-															   jmp		lpp5_3
-															   lpp5_2 : mov[edi], ch
-																		mov[edi + edx + 2], ch
-																		lpp5_1 : inc		edi
-																				 lpp5_3 : add		ebx, b
-																						  sub		ebx, 0x10000
-																						  cmp		ebx, 0x00800000
-																						  jb		lpp6_1
-																						  cmp		ebx, 0x00900000
-																						  jae		lpp6_2
-																						  //transparent
-																						  mov		eax, ebx
-																						  sub		eax, 0x00800000
-																						  sar		eax, 12
-																						  and eax, 0xF0
-																						  or al, cl
-																						  mov		ah, [edi]
-																						  mov		al, [WaterCost + eax]
-																						  stosb
-																						  mov[edi + edx + 1], al
-																						  jmp		lpp6_3
-																						  lpp6_2 : mov[edi], ch
-																								   mov[edi + edx + 2], ch
-																								   lpp6_1 : inc		edi
-																											lpp6_3 : add		ebx, b
-																													 add		ebx, 0x10000
-																													 cmp		ebx, 0x00800000
-																													 jb		lpp7_1
-																													 cmp		ebx, 0x00900000
-																													 jae		lpp7_2
-																													 //transparent
-																													 mov		eax, ebx
-																													 sub		eax, 0x00800000
-																													 sar		eax, 12
-																													 and eax, 0xF0
-																													 or al, cl
-																													 mov		ah, [edi]
-																													 mov		al, [WaterCost + eax]
-																													 stosb
-																													 mov[edi + edx + 1], al
-																													 jmp		lpp7_3
-																													 lpp7_2 : mov[edi], ch
-																															  mov[edi + edx + 2], ch
-																															  lpp7_1 : inc		edi
-																																	   lpp7_3 : add		ebx, b
-																																				sub		ebx, 0x10000
-																																				mov		a, ebx
-																																				add		esi, 2
-																																				dec		cyc1
-																																				jnz		lpp2C
-																																				add		edi, edx
-																																				add		esi, (WaveLx * 2) - 16
-																																				add		edi, edx
-																																				mov		ebx, a0
-																																				add		ebx, c
-																																				mov		a, ebx
-																																				mov		a0, ebx
-																																				mov		ebx, b
-																																				add		ebx, d
-																																				mov		b, ebx
-																																				sub		edi, 32
-																																				dec		cyc2
-																																				jnz		lpp1C
-																																				popf
-																																				pop		edi
-																																				pop		esi
+			//push	esi
+			//push	edi
+			//pushf
+			//cld
+			//mov		esi, Wave
+			//mov		edi, ofst
+			//mov		edx, ScrWidth
+
+			//push	esi
+			//push	edi
+			//pushf
+			//cld
+			//mov		esi, Wave
+			//mov		edi, ofst
+			//mov		cx, 0x0408
+			//mov		edx, ScrWidth
+			short * TmpESI = Wave;
+			unsigned char * TmpEDI = reinterpret_cast<unsigned char *>(ScreenPtr) + x + y*ScrWidth;
+			int TmpEAX, TmpEBX, TmpECX, TmpEDX = ScrWidth;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			short & TmpBX = *reinterpret_cast<short *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned char & TmpCH = *(reinterpret_cast<unsigned char *>(&TmpECX) + 1);
+		lpp1C : 
+			//mov		cyc1, 8
+			cyc1 = 8;
+		lpp2C : 
+			//xor		ebx, ebx
+			//mov		bx, [esi + WaveLx * 2]
+			//sub		bx, [esi - WaveLx * 2]
+			//test	bx, 0x8000
+			//jz		lpp3C
+			//or ebx, 0xFFFF0000
+			TmpEBX = 0;
+			TmpBX = TmpESI[WaveLx] - TmpESI[-WaveLx];
+			if ((TmpBX & 0x8000) == 0) goto lpp3C;
+			TmpEBX |= 0xFFFF0000;
+		lpp3C : 
+			//sar		ebx, ashift
+			//add		ebx, ASHI
+			//mov		eax, [Colors4 + ebx * 4]
+			//mov		ecx, eax
+			//sub		cl, 0xB0
+			//and cl, 0xF
+			//TmpEBX /= 128;	// ashift = 7
+			if (TmpEBX & 0x80000000)
+			{
+				TmpEBX >>= ashift;
+				TmpEBX |= 0xFE000000;
+			}
+			else TmpEBX >>= ashift;
+			TmpEBX += ASHI;
+			TmpEAX = Colors4[TmpEBX];
+			TmpECX = TmpEAX;
+			TmpCL = (TmpCL - 0xB0) & 0x0F;			
+			//transparency
+			//xor eax, eax
+			//mov		ebx, a
+			//cmp		ebx, 0x00800000
+			//jb		lpp4_1
+			//cmp		ebx, 0x00900000
+			//jae		lpp4_2
+			TmpEAX = 0;
+			TmpEBX = a;
+			if (TmpEBX < 0x00800000) goto lpp4_1;
+			if (TmpEBX >= 0x00900000) goto lpp4_2;
+			//transparent
+			//mov		eax, ebx
+			//sub		eax, 0x00800000
+			//sar		eax, 12
+			//and eax, 0xF0
+			//or al, cl
+			//mov		ah, [edi]
+			//mov		al, [WaterCost + eax]
+			//stosb
+			//mov[edi + edx + 1], al
+			//jmp		lpp4_3
+			TmpEAX = TmpEBX - 0x00800000;
+			if (TmpEAX & 0x80000000)
+			{
+				TmpEAX >>= 12;
+				TmpEAX |= 0xFFF00000;
+			}
+			else TmpEAX >>= 12;
+			TmpEAX &= 0xF0;
+			TmpAL |= TmpCL;
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = WaterCost[TmpEAX];
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 1) = TmpAL;
+			goto lpp4_3;
+		lpp4_2 : 
+			//mov[edi], ch
+			//mov[edi + edx + 2], ch
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpCH;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 2) = TmpCH;
+		lpp4_1 : 
+			//inc		edi
+			TmpEDI++;
+		lpp4_3 : 
+			//add		ebx, b
+			//add		ebx, 0x10000
+			//cmp		ebx, 0x00800000
+			//jb		lpp5_1
+			//cmp		ebx, 0x00900000
+			//jae		lpp5_2
+			TmpEBX += b + 0x10000;
+			if (TmpEBX < 0x00800000) goto lpp5_1;
+			if (TmpEBX >= 0x00900000) goto lpp5_2;
+			//transparent
+			//mov		eax, ebx
+			//sub		eax, 0x00800000
+			//sar		eax, 12
+			//and eax, 0xF0
+			//or al, cl
+			//mov		ah, [edi]
+			//mov		al, [WaterCost + eax]
+			//stosb
+			//mov[edi + edx + 1], al
+			//jmp		lpp5_3
+			TmpEAX = TmpEBX - 0x00800000;
+			if (TmpEAX & 0x80000000)
+			{
+				TmpEAX >>= 12;
+				TmpEAX |= 0xFFF00000;
+			}
+			else TmpEAX >>= 12;
+			TmpEAX &= 0xF0;
+			TmpAL |= TmpCL;
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = WaterCost[TmpEAX];
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 1) = TmpAL;
+			goto lpp5_3;
+		lpp5_2 : 
+			//mov[edi], ch
+			//mov[edi + edx + 2], ch
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpCH;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 2) = TmpCH;
+		lpp5_1 : 
+			//inc		edi
+			TmpEDI++;
+		lpp5_3 : 
+			//add		ebx, b
+			//sub		ebx, 0x10000
+			//cmp		ebx, 0x00800000
+			//jb		lpp6_1
+			//cmp		ebx, 0x00900000
+			//jae		lpp6_2
+			TmpEBX += b - 0x10000;
+			if (TmpEBX < 0x00800000) goto lpp6_1;
+			if (TmpEBX >= 0x00900000) goto lpp6_2;
+			//transparent
+			//mov		eax, ebx
+			//sub		eax, 0x00800000
+			//sar		eax, 12
+			//and eax, 0xF0
+			//or al, cl
+			//mov		ah, [edi]
+			//mov		al, [WaterCost + eax]
+			//stosb
+			//mov[edi + edx + 1], al
+			//jmp		lpp6_3
+			TmpEAX = TmpEBX - 0x00800000;
+			if (TmpEAX & 0x80000000)
+			{
+				TmpEAX >>= 12;
+				TmpEAX |= 0xFFF00000;
+			}
+			else TmpEAX >>= 12;
+			TmpEAX &= 0xF0;
+			TmpAL |= TmpCL;
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = WaterCost[TmpEAX];
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 1) = TmpAL;
+			goto lpp6_3;
+		lpp6_2 :
+			//mov[edi], ch
+			//mov[edi + edx + 2], ch
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpCH;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 2) = TmpCH;
+		lpp6_1 : 
+			//inc		edi
+			TmpEDI++;
+		lpp6_3 : 
+			//add		ebx, b
+			//add		ebx, 0x10000
+			//cmp		ebx, 0x00800000
+			//jb		lpp7_1
+			//cmp		ebx, 0x00900000
+			//jae		lpp7_2
+			TmpEBX += b + 0x10000;
+			if (TmpEBX < 0x00800000) goto lpp7_1;
+			if (TmpEBX >= 0x00900000) goto lpp7_2;
+			//transparent
+			//mov		eax, ebx
+			//sub		eax, 0x00800000
+			//sar		eax, 12
+			//and eax, 0xF0
+			//or al, cl
+			//mov		ah, [edi]
+			//mov		al, [WaterCost + eax]
+			//stosb
+			//mov[edi + edx + 1], al
+			//jmp		lpp7_3
+			TmpEAX = TmpEBX - 0x00800000;
+			if (TmpEAX & 0x80000000)
+			{
+				TmpEAX >>= 12;
+				TmpEAX |= 0xFFF00000;
+			}
+			else TmpEAX >>= 12;
+			TmpEAX &= 0xF0;
+			TmpAL |= TmpCL;
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = WaterCost[TmpEAX];
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 1) = TmpAL;
+			goto lpp7_3;
+		lpp7_2 : 
+			//mov[edi], ch
+			//mov[edi + edx + 2], ch
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpCH;
+			*reinterpret_cast<unsigned char *>(TmpEDI + TmpEDX + 2) = TmpCH;
+		lpp7_1 : 
+			//inc		edi
+			TmpEDI++;
+		lpp7_3 : 
+			//add		ebx, b
+			//sub		ebx, 0x10000
+			//mov		a, ebx
+			//add		esi, 2
+			//dec		cyc1
+			//jnz		lpp2C
+			TmpEBX += b - 0x10000;
+			a = TmpEBX;
+			TmpESI++;
+			cyc1--;
+			if (cyc1 != 0) goto lpp2C;
+			//add		edi, edx
+			//add		esi, (WaveLx * 2) - 16
+			//add		edi, edx
+			//mov		ebx, a0
+			//add		ebx, c
+			//mov		a, ebx
+			//mov		a0, ebx
+			//mov		ebx, b
+			//add		ebx, d
+			//mov		b, ebx
+			//sub		edi, 32
+			//dec		cyc2
+			//jnz		lpp1C
+			TmpEDI += 2 * TmpEDX;
+			TmpESI += WaveLx - 8;
+			a0 += c;
+			a = a0;
+			b += d;
+			TmpEDI -= 32;
+			cyc2--;
+			if (cyc2 != 0) goto lpp1C;
+
+			//popf
+			//pop		edi
+			//pop		esi
 		}
 	}
-}
-
-inline void Wspot(short* wave, int x, int y, int h) 
-{
-	if (x > 1 && y > 1 && x < WaveLx - 2 && y < WaveLy - 2) 
-	{
-		wave[x + y*WaveLx] += h;
-	}
-}
-
-void GenerateHi(short* Wave, int x, int y, int h) 
-{
-	if (x > 4 && y > 4 && x < WaveLx - 5 && y < WaveLy - 5) 
-	{
-		int ofst = x + y*WaveLx;
-		Wave[ofst] += h;
-		h = (h + h + h) >> 2;
-		Wave[ofst + 1] += h;
-		Wave[ofst - 1] += h;
-		Wave[ofst + WaveLx] += h;
-		Wave[ofst - WaveLx] += h;
-	}
-}
-
-void GenerateWave(int x, int y, int vx, int vy, int h) 
-{
-	short* wave1 = nullptr;
-	short* wave2 = nullptr;
-	switch (CurStage) 
-	{
-	case 0:
-		wave1 = Wave1;
-		wave2 = Wave2;
-		break;
-	case 1:
-		wave1 = Wave2;
-		wave2 = Wave0;
-		break;
-	case 2:
-		wave1 = Wave0;
-		wave2 = Wave1;
-		break;
-	}
-
-	GenerateHi(wave1, x - vx, y - vy, h);
-	GenerateHi(wave2, x, y, h);
 }
 
 void DrawAllWater() 
@@ -1424,344 +941,65 @@ void InitWatt()
 	InitCost();
 }
 
-void CopyWaves(short* wave, int SrcOfs, int DstOfs, int Lx, int Ly) 
-{
-	if (SrcOfs > DstOfs) 
-	{
-		//direct copy
-		int addo = (WaveLx - Lx) << 1;
-		int Lx1 = Lx >> 1;
-		__asm 
-		{
-			push	esi
-			push	edi
-			pushf
-			cld
-			mov		esi, wave
-			add		esi, SrcOfs
-			mov		edi, wave
-			add		edi, DstOfs
-			mov		edx, Ly
-			ppp1 : mov		ecx, Lx1
-				   rep		movsd
-				   add		esi, addo
-				   add		edi, addo
-				   dec		edx
-				   jnz		ppp1
-				   popf
-				   pop		edi
-				   pop		esi
-		}
-	}
-	else 
-	{
-		//inverse copy
-		int addo = (WaveLx - Lx) << 1;
-		int add1 = (Lx + Ly*WaveLx - 1) << 1;
-		int Lx1 = Lx >> 1;
-		__asm 
-		{
-			push	esi
-			push	edi
-			pushf
-			std
-			mov		esi, wave
-			add		esi, SrcOfs
-			add		esi, add1
-			mov		edi, wave
-			add		edi, DstOfs
-			add		edi, add1
-			mov		edx, Ly
-			ppp2 : mov		ecx, Lx1
-				   rep		movsd
-				   sub		esi, addo
-				   sub		edi, addo
-				   dec		edx
-				   jnz		ppp2
-				   popf
-				   pop		edi
-				   pop		esi
-		}
-	}
-}
-
-bool INSI(int x, int y) 
-{
-	if (x >= 0 && y >= 0 && x < smaplx && y < smaply)
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-void HandleShift() 
-{
-	if (mapx == OldMapx&&mapy == OldMapy)
-	{
-		return;
-	}
-	int x0 = 0;
-	int y0 = 0;
-	int x1 = 0;
-	int y1 = 0;
-	int x2 = 0;
-	int y2 = 0;
-	int Lx0 = 0;
-	int Ly0 = 0;
-	int Lx1 = 0;
-	int Ly1 = 0;
-	int Lx2 = 0;
-	int Ly2 = 0;
-	int xs = 0;
-	int ys = 0;
-	int Dx, Dy;
-	bool Is0, Is1, Is2;
-	if (mapx + smaplx <= OldMapx || OldMapx + smaplx <= mapx || mapy + smaply <= OldMapy || OldMapy + smaply <= mapy) 
-	{
-		Is0 = false;
-		Is1 = true;
-		Is2 = false;
-		x1 = 0;
-		y1 = 0;
-		Lx1 = smaplx;
-		Ly1 = smaply;
-	}
-	else 
-	{
-		if (mapx > OldMapx) 
-		{
-			Is0 = true;
-			y0 = 0;
-			Lx0 = mapx - OldMapx;
-			x0 = smaplx - Lx0;
-			Ly0 = smaply;
-			if (mapy == OldMapy) 
-			{
-				Is1 = false;
-				Is2 = true;
-				x2 = 0;
-				y2 = 0;
-				Lx2 = x0;
-				Ly2 = smaply;
-				xs = Lx0;
-				ys = 0;
-			}
-			else 
-			{
-				if (mapy < OldMapy) 
-				{
-					Is1 = true;
-					Is2 = true;
-					x1 = 0;
-					y1 = 0;
-					Lx1 = x0;
-					Ly1 = OldMapy - mapy;
-					x2 = 0;
-					y2 = Ly1;
-					Lx2 = Lx1;
-					Ly2 = smaply - Ly1;
-					xs = Lx0;
-					ys = 0;
-				}
-				else 
-				{
-					Is1 = true;
-					Is2 = true;
-					x1 = 0;
-					y1 = OldMapy + smaply - mapy;
-					Lx1 = x0;
-					Ly1 = mapy - OldMapy;
-					x2 = 0;
-					y2 = 0;
-					Lx2 = Lx1;
-					Ly2 = y1;
-					xs = Lx0;
-					ys = Ly1;
-				}
-			}
-		}
-		else 
-		{
-			Is0 = true;
-			x0 = 0;
-			y0 = 0;
-			Lx0 = OldMapx - mapx;
-			Ly0 = smaply;
-			if (mapy == OldMapy) 
-			{
-				Is1 = false;
-				Is2 = true;
-				x2 = Lx0;
-				y2 = 0;
-				Lx2 = smaplx - Lx0;
-				Ly2 = smaply;
-				xs = 0;
-				ys = 0;
-			}
-			else 
-			{
-				if (mapy < OldMapy) 
-				{
-					Is1 = true;
-					Is2 = true;
-					x1 = Lx0;
-					y1 = 0;
-					Ly1 = OldMapy - mapy;
-					Lx2 = smaplx - Lx0;
-					Ly2 = smaply - Ly1;
-					Lx1 = Lx2;
-					x2 = x1;
-					y2 = Ly1;
-					xs = 0;
-					ys = 0;
-				}
-				else 
-				{
-					Is1 = true;
-					Is2 = true;
-					x1 = Lx0;
-					Ly1 = mapy - OldMapy;
-					y1 = smaply - Ly1;
-					Lx2 = smaplx - Lx0;
-					Ly2 = y1;
-					Lx1 = Lx2;
-					x2 = x1;
-					y2 = 0;
-					xs = 0;
-					ys = Ly1;
-				}
-			}
-		}
-	}
-
-	Dx = mapy - OldMapy;
-	Dy = mapx - OldMapx;
-
-	if (Is2)
-	{
-		x2++;
-		y2++;
-		xs++;
-		ys++;
-		x2 <<= 3;
-		y2 <<= 3;
-		xs <<= 3;
-		ys <<= 3;
-		int DstOfs = ((x2 + y2*WaveLx) << 1);
-		int SrcOfs = ((xs + ys*WaveLx) << 1);
-
-		CopyWaves(Wave0, SrcOfs, DstOfs, Lx2 << 3, Ly2 << 3);
-		CopyWaves(Wave1, SrcOfs, DstOfs, Lx2 << 3, Ly2 << 3);
-		CopyWaves(Wave2, SrcOfs, DstOfs, Lx2 << 3, Ly2 << 3);
-	}
-
-	if (Is1&&Lx1&&Ly1) 
-	{
-		ExtrapolateSurface(x1, y1, Lx1, Ly1);
-	}
-
-	if (Is0&&Lx0&&Ly0) 
-	{
-		ExtrapolateSurface(x0, y0, Lx0, Ly0);
-	}
-
-	OldMapx = mapx;
-	OldMapy = mapy;
-}
-
-void ConditionalProcessWaves(short* Wave0, short* Wave1, short* Wave2, int x0, int y0, int Lx, int Ly) 
-{
-	int SX = MaxWX;
-	byte* copos = WaterDeep + x0 + mapx + (y0 + mapy)*SX;
-	int dpos = SX - Lx;
-	for (int iy = 0; iy < Ly; iy++) 
-	{
-		for (int ix = 0; ix < Lx; ix++) 
-		{
-			if (copos[0] > 100 && copos[1] > 100 && copos[MaxWX] > 100 && copos[(MaxWX)+1] > 100) 
-			{
-				ProcessWaves(Wave0, Wave1, Wave2, ((x0 + ix) << 3) + 10, ((y0 + iy) << 3) + 10, 8, 8);
-			}
-			copos++;
-		}
-		copos += dpos;
-	}
-}
-
-void FastProcess1(short* Wave0, short* Wave1, short* Wave2) 
-{
-	int cyc = WaveLy - 2;
-	int	cyc1;
-	__asm 
-	{
-		push	esi
-		push	edi
-		mov		esi, Wave0
-		mov		edi, Wave1
-		mov		ebx, Wave2
-		mov		edx, (WaveLx + 1) * 2
-		lpp1:	mov		cyc1, WaveLx - 2
-				lpp2 : mov		ax, [edi + edx + 2]
-					   add		ax, [edi + edx - 2]
-					   add		ax, [edi + edx - WaveLx * 2]
-					   add		ax, [edi + edx + WaveLx * 2]
-					   mov		cx, [edi + edx]
-					   sal     cx, 1
-					   sub     ax, cx
-					   sub     ax, cx
-					   sar     ax, 6
-					   add     ax, cx
-					   sub     ax, [esi + edx]
-					   mov     cx, ax
-					   sar     cx, 16
-					   mov[ebx + edx], ax
-					   add     edx, 2
-					   dec     cyc1
-					   jnz     lpp2
-					   add		edx, 4
-					   dec		cyc
-					   jnz		lpp1
-					   pop		edi
-					   pop		esi
-	}
-}
-
 void FastProcess1_0(short* Wave0, short* Wave1, short* Wave2) 
 {
 	int cyc = (WaveLy - 2) >> 1;
 	int	cyc1;
-	__asm 
+	// BoonXRay 13.08.2017
+	//__asm	
 	{
-		push	esi
-		push	edi
-		mov		esi, Wave0
-		mov		edi, Wave1
-		mov		ebx, Wave2
-		mov		edx, (WaveLx + 1) * 2
-		lpp1:	mov		cyc1, WaveLx - 2
-				lpp2 : mov		ax, [edi + edx + 2]
-					   add		ax, [edi + edx - 2]
-					   add		ax, [edi + edx - WaveLx * 2]
-					   add		ax, [edi + edx + WaveLx * 2]
-					   mov		cx, [edi + edx]
-					   sal     cx, 1
-					   sub     ax, cx
-					   sub     ax, cx
-					   sar     ax, 4
-					   add     ax, cx
-					   sub     ax, [esi + edx]
-					   mov[ebx + edx], ax
-					   add     edx, 2
-					   dec     cyc1
-					   jnz     lpp2
-					   add		edx, 4
-					   dec		cyc
-					   jnz		lpp1
-					   pop		edi
-					   pop		esi
+		//push	esi
+		//push	edi
+		//mov		esi, Wave0
+		//mov		edi, Wave1
+		//mov		ebx, Wave2
+		//mov		edx, (WaveLx + 1) * 2
+		short * TmpESI = Wave0, * TmpEDI = Wave1, *TmpEBX = Wave2;
+		int TmpEDX = WaveLx + 1;
+	lpp1:
+		//mov		cyc1, WaveLx - 2
+		cyc1 = WaveLx - 2;
+	lpp2:
+		//mov		ax, [edi + edx + 2]
+		//add		ax, [edi + edx - 2]
+		//add		ax, [edi + edx - WaveLx * 2]
+		//add		ax, [edi + edx + WaveLx * 2]
+		short TmpAX = TmpEDI[TmpEDX + 1];
+		TmpAX += TmpEDI[TmpEDX - 1];
+		TmpAX += TmpEDI[TmpEDX - WaveLx ];
+		TmpAX += TmpEDI[TmpEDX + WaveLx ];
+		//mov		cx, [edi + edx]
+		//sal     cx, 1
+		short TmpCX = TmpEDI[TmpEDX] << 1;
+		//sub     ax, cx
+		//sub     ax, cx
+		//sar     ax, 4
+		//add     ax, cx
+		//sub     ax, [esi + edx]
+		//mov[ebx + edx], ax
+		TmpAX -= 2 * TmpCX;
+		if (TmpAX & 0x8000)
+		{
+			TmpAX >>= 4;
+			TmpAX |= 0xF000;
+		}
+		else TmpAX >>= 4;
+		TmpAX += TmpCX - TmpESI[TmpEDX];
+		TmpEBX[TmpEDX] = TmpAX;
+		//add     edx, 2
+		//dec     cyc1
+		//jnz     lpp2
+		//add		edx, 4
+		//dec		cyc
+		//jnz		lpp1
+		TmpEDX++;
+		cyc1--;
+		if (cyc1 != 0) goto lpp2;
+		TmpEDX += 2;
+		cyc--;
+		if (cyc != 0) goto lpp1;
+		//pop		edi
+		//pop		esi
 	}
 }
 
@@ -1769,35 +1007,61 @@ void FastProcess1_1(short* Wave0, short* Wave1, short* Wave2)
 {
 	int cyc = (WaveLy - 2) >> 1;
 	int	cyc1;
-	__asm 
+	// BoonXRay 14.08.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		mov		esi, Wave0
-		mov		edi, Wave1
-		mov		ebx, Wave2
-		mov		edx, WaveLx*WaveLy + 2
-		lpp1:	mov		cyc1, WaveLx - 2
-				lpp2 : mov		ax, [edi + edx + 2]
-					   add		ax, [edi + edx - 2]
-					   add		ax, [edi + edx - WaveLx * 2]
-					   add		ax, [edi + edx + WaveLx * 2]
-					   mov		cx, [edi + edx]
-					   sal     cx, 1
-					   sub     ax, cx
-					   sub     ax, cx
-					   sar     ax, 4
-					   add     ax, cx
-					   sub     ax, [esi + edx]
-					   mov[ebx + edx], ax
-					   add     edx, 2
-					   dec     cyc1
-					   jnz     lpp2
-					   add		edx, 4
-					   dec		cyc
-					   jnz		lpp1
-					   pop		edi
-					   pop		esi
+		//push	esi
+		//push	edi
+		//mov		esi, Wave0
+		//mov		edi, Wave1
+		//mov		ebx, Wave2
+		//mov		edx, WaveLx*WaveLy + 2
+		short * TmpESI = Wave0, *TmpEDI = Wave1, *TmpEBX = Wave2;
+		int TmpEDX = ( WaveLx*WaveLy + 2 ) / 2;
+	lpp1:	
+		//mov		cyc1, WaveLx - 2
+		cyc1 = WaveLx - 2;
+	lpp2 : 
+		//mov		ax, [edi + edx + 2]
+		//add		ax, [edi + edx - 2]
+		//add		ax, [edi + edx - WaveLx * 2]
+		//add		ax, [edi + edx + WaveLx * 2]
+		short TmpAX = TmpEDI[TmpEDX + 1];
+		TmpAX += TmpEDI[TmpEDX - 1];
+		TmpAX += TmpEDI[TmpEDX - WaveLx];
+		TmpAX += TmpEDI[TmpEDX + WaveLx];
+		//mov		cx, [edi + edx]
+		//sal     cx, 1
+		short TmpCX = TmpEDI[TmpEDX] << 1;
+		//sub     ax, cx
+		//sub     ax, cx
+		//sar     ax, 4
+		//add     ax, cx
+		//sub     ax, [esi + edx]
+		//mov[ebx + edx], ax
+		TmpAX -= 2 * TmpCX;
+		if (TmpAX & 0x8000)
+		{
+			TmpAX >>= 4;
+			TmpAX |= 0xF000;
+		}
+		else TmpAX >>= 4;
+		TmpAX += TmpCX - TmpESI[TmpEDX];
+		TmpEBX[TmpEDX] = TmpAX;
+		//add     edx, 2
+		//dec     cyc1
+		//jnz     lpp2
+		//add		edx, 4
+		//dec		cyc
+		//jnz		lpp1
+		TmpEDX++;
+		cyc1--;
+		if (cyc1 != 0) goto lpp2;
+		TmpEDX += 2;
+		cyc--;
+		if (cyc != 0) goto lpp1;
+		//pop		edi
+		//pop		esi
 	}
 }
 
@@ -1831,24 +1095,11 @@ void ProcessWaves(short* Wave0, short* Wave1, short* Wave2)
 	tttx = !tttx;
 }
 
-void DisturbWater(short* Wave) 
-{
-	int ofst = int(Wave + ((1 + WaveLx) << 1));
-	__asm {
-		push	esi
-		push	edi
-
-		pop		esi
-		pop		edi
-	};
-}
-
 void CorrectLeftWaves();
 
 void HandleWater() {
 	int WLX = smaplx + 2;
 	int WLY = smaply + 2;
-	int han = tmtmt & 1;
 	int w1 = 0;
 	int w2 = WLY >> 2;
 	int w3 = WLY >> 1;
@@ -1856,68 +1107,25 @@ void HandleWater() {
 	int w5 = WLY - 1;
 	w2 = w3;
 	w3 = w5;
-	han = 2;
 
-	switch (han) 
+	switch (CurStage) 
 	{
 	case 0:
-		switch (CurStage) 
-		{
-		case 0:
-			ConditionalProcessWaves(Wave0, Wave1, Wave2, 0, w1, WLX, w2 - w1);
-			break;
-
-		case 1:
-			ConditionalProcessWaves(Wave1, Wave2, Wave0, 0, w1, WLX, w2 - w1);
-			break;
-
-		case 2:
-			ConditionalProcessWaves(Wave2, Wave0, Wave1, 0, w1, WLX, w2 - w1);
-			break;
-		}
+		ProcessWaves(Wave0, Wave1, Wave2);
+		if (!tttx)
+			CurStage = 1;
 		break;
 
 	case 1:
-		switch (CurStage) 
-		{
-		case 0:
-			ConditionalProcessWaves(Wave0, Wave1, Wave2, 0, w2, WLX, w3 - w2);
-			CurStage = 1;
-			break;
-
-		case 1:
-			ConditionalProcessWaves(Wave1, Wave2, Wave0, 0, w2, WLX, w3 - w2);
+		ProcessWaves(Wave1, Wave2, Wave0);
+		if (!tttx)
 			CurStage = 2;
-			break;
-
-		case 2:
-			ConditionalProcessWaves(Wave2, Wave0, Wave1, 0, w2, WLX, w3 - w2);
-			CurStage = 0;
-			break;
-		}
 		break;
 
 	case 2:
-		switch (CurStage) 
-		{
-		case 0:
-			ProcessWaves(Wave0, Wave1, Wave2);
-			if (!tttx)
-				CurStage = 1;
-			break;
-
-		case 1:
-			ProcessWaves(Wave1, Wave2, Wave0);
-			if (!tttx)
-				CurStage = 2;
-			break;
-
-		case 2:
-			ProcessWaves(Wave2, Wave0, Wave1);
-			if (!tttx)
-				CurStage = 0;
-			break;
-		}
+		ProcessWaves(Wave2, Wave0, Wave1);
+		if (!tttx)
+			CurStage = 0;
 		break;
 	}
 

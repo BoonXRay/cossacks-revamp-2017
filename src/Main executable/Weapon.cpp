@@ -449,7 +449,6 @@ void ProcessExpl()
 }
 
 void MoveAway( int x, int y );
-bool TraceObjectsInLine( int xs, int ys, int zs, int* xD, int* yD, int* zD, int damage, OneObject* Sender, byte AttType );
 bool Create3DAnmObjectEX( Weapon* Weap, int xs, int ys, int zs1,
 	int xd, int yd, int zd,
 	OneObject* OB, byte AttType, word DestObj,
@@ -901,99 +900,4 @@ int PredictShot( Weapon* Weap, int xs, int ys, int zs, int xd, int yd, int zd, w
 		} while ( dst > ( 4 << WEPSH ) );
 	}
 	return -1;
-}
-
-bool TraceObjectsInLine( int xs, int ys, int zs,
-	int* xD, int* yD, int* zD, int damage,
-	OneObject* Sender, byte AttType )
-{
-	int cx = -1;
-	int cy = -1;
-
-	int dx = *xD - xs;
-	int dy = *yD - ys;
-	int dz = *zD - zs;
-
-	int Len = sqrt( dx*dx + dy*dy + dz*dz );
-	int N = ( Len >> 4 ) + 1;
-	int N2 = N + N;
-	int MinR = 10000;
-	word BestID = 0xFFFF;
-	int SMID = 0xFFFF;
-	byte MASK = 0;
-	if ( Sender )
-	{
-		SMID = Sender->Index;
-		MASK = Sender->NMask;
-	}
-
-	for ( int i = 0; i < N2; i++ )
-	{
-		int xx = ( dx*i ) / N;
-		int yy = ( dy*i ) / N;
-		int zz = zs + ( dz*i ) / N;
-		int ccx = ( xs + xx ) >> 7;
-		int ccy = ( ys + yy ) >> 7;
-		if ( cx != ccx || cy != ccy )
-		{
-			cx = ccx;
-			cy = ccy;
-			if ( cx >= 0 && cy >= 0 && cx < VAL_MAXCX - 1 && cy < VAL_MAXCX - 1 )
-			{
-				int cell = 1 + VAL_MAXCX + ( cy << VAL_SHFCX ) + cx;
-				int NMon = MCount[cell];
-				if ( NMon )
-				{
-					int ofs1 = cell << SHFCELL;
-					word MID;
-					for ( int i = 0; i < NMon; i++ )
-					{
-						MID = GetNMSL( ofs1 + i );
-						if ( MID != 0xFFFF && MID != SMID )
-						{
-							OneObject* OB = Group[MID];
-							if ( OB && !OB->Sdoxlo )
-							{
-								int ux = OB->RealX >> 4;
-								int uy = OB->RealY >> 4;
-								int R = Norma( ux - xs, uy - ys );
-								int dz = zz - OB->RZ;
-								int minR = 80;
-
-								if ( OB->NMask&MASK )
-								{
-									minR = 250;
-								}
-
-								if ( dz > 0 && dz<90 && R>minR&&R < MinR )
-								{
-									int r = abs( ( ux - xs )*yy - ( uy - ys )*xx ) / Len;
-									if ( r < OB->newMons->UnitRadius )
-									{
-										BestID = MID;
-										MinR = R;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if ( BestID != 0xFFFF )
-	{
-		OneObject* OB = Group[BestID];
-		*xD = ( OB->RealX >> 4 );
-		*yD = ( OB->RealY >> 4 );
-		if ( Sender&&AttType < NAttTypes )
-		{
-			int RR = Norma( *xD - xs, *yD - ys );
-			damage = int( float( damage )*exp( -0.693147*float( RR ) / float( Sender->newMons->DamageDecr[AttType] ) ) );
-		}
-		OB->MakeDamage( damage, damage, Sender, AttType );
-		return true;
-	}
-	return false;
 }

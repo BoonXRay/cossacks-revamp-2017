@@ -15,11 +15,9 @@
 //extern int MaxExistingTIRef;
 #define TriUnit		16 //32 //24
 #define TriUnit34	12 //24 //18
-void ShowRelief();
 //void ShowSector(int i,bool Mode3D);
 int GetLighting(int i);
 void CreateRandomHMap();
-void CreateTriBlob(int x,int y,int h,int r);
 void SetHi(int i,int h);
 int GetHi(int i);
 int GetTriX(int i);

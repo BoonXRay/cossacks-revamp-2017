@@ -90,87 +90,161 @@ void ShowBlob(int x, int y, byte* Blob, int Lx, int Ly) {
 	int scadd = ScrWidth - BLX;
 	int badd = Lx - BLX;
 	if (BLX & 3) {
-		__asm {
-			push	esi
-			push	edi
-			mov		esi, bufo
-			mov		edi, sof
-			mov		ch, byte ptr BLY
-			xor		eax, eax
-			lab1 :
-			mov		cl, byte ptr BLX
-				lab2 :
-			mov		ah, [esi]
-				mov		al, [edi]
-				mov		al, [TraceGrd + eax]
-				mov[edi], al
-				inc		esi
-				inc		edi
-				dec		cl
-				jnz		lab2
-				add		esi, badd
-				add		edi, scadd
-				dec		ch
-				jnz		lab1
-				pop		edi
-				pop		esi
+		// BoonXRay 14.08.2017
+		//__asm 
+		{
+			//push	esi
+			//push	edi
+			//mov		esi, bufo
+			//mov		edi, sof
+			//mov		ch, byte ptr BLY
+			//xor		eax, eax
+			unsigned char * TmpESI = bof;
+			unsigned char * TmpEDI = reinterpret_cast<unsigned char *>(ScreenPtr) + x + y*ScrWidth;
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned char & TmpCH = *(reinterpret_cast<unsigned char *>(&TmpECX) + 1);
+			TmpCH = BLY;
+		lab1 :
+			//mov		cl, byte ptr BLX
+			TmpCL = BLX;
+		lab2 :
+			//mov		ah, [esi]
+			//mov		al, [edi]
+			//mov		al, [TraceGrd + eax]
+			//mov[edi], al
+			//inc		esi
+			//inc		edi
+			TmpAH = *TmpESI;
+			TmpAL = *TmpEDI;
+			TmpAL = TraceGrd[TmpEAX];
+			*TmpEDI = TmpAL;
+			TmpESI++;
+			TmpEDI++;
+			//dec		cl
+			//jnz		lab2
+			//add		esi, badd
+			//add		edi, scadd
+			//dec		ch
+			//jnz		lab1
+			TmpCL--;
+			if (TmpCL != 0) goto lab2;
+			TmpESI += badd;
+			TmpEDI += scadd;
+			TmpCH--;
+			if (TmpCH != 0) goto lab1;
+			//pop		edi
+			//pop		esi
 		};
 	}
 	else {
 		BLX >>= 2;
-		__asm {
-			push	esi
-			push	edi
-			mov		esi, bufo
-			mov		edi, sof
-			mov		ch, byte ptr BLY
-			xor		eax, eax
-			lab1o :
-			mov		cl, byte ptr BLX
-				lab2o :
-			mov		ebx, [esi]
-				mov		edx, [edi]
-				mov		ah, bl
-				mov		al, dl
-				shr		ebx, 8
-				mov		al, [TraceGrd + eax]
-				mov		dl, al
-				mov		ah, bl
-				ror		edx, 8
-				mov		al, dl
+		// BoonXRay 14.08.2017
+		//__asm 
+		{
+			//push	esi
+			//push	edi
+			//mov		esi, bufo
+			//mov		edi, sof
+			//mov		ch, byte ptr BLY
+			//xor		eax, eax
+			unsigned char * TmpESI = bof;
+			unsigned char * TmpEDI = reinterpret_cast<unsigned char *>(ScreenPtr) + x + y*ScrWidth;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned char & TmpCH = *(reinterpret_cast<unsigned char *>(&TmpECX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+			TmpCH = BLY;
+		lab1o :
+			//mov		cl, byte ptr BLX
+			TmpCL = BLX;
+		lab2o :
+			//mov		ebx, [esi]
+			//mov		edx, [edi]
+			//mov		ah, bl
+			//mov		al, dl
+			//shr		ebx, 8
+			//mov		al, [TraceGrd + eax]
+			//mov		dl, al
+			//mov		ah, bl
+			//ror		edx, 8
+			//mov		al, dl
+			TmpEBX = *reinterpret_cast<unsigned int *>(TmpESI);
+			TmpEDX = *reinterpret_cast<unsigned int *>(TmpEDI);
+			TmpAH = TmpBL;
+			TmpAL = TmpDL;
+			TmpEBX >>= 8;
+			TmpAL = TraceGrd[TmpEAX];
+			TmpDL = TmpAL;
+			TmpAH = TmpBL;
+			unsigned int TmpUInt = TmpEDX << (32 - 8);
+			TmpEDX = (TmpEDX >> 8) | TmpUInt;
+			TmpAL = TmpDL;
 
-				shr		ebx, 8
-				mov		al, [TraceGrd + eax]
-				mov		dl, al
-				mov		ah, bl
-				ror		edx, 8
-				mov		al, dl
+			//shr		ebx, 8
+			//mov		al, [TraceGrd + eax]
+			//mov		dl, al
+			//mov		ah, bl
+			//ror		edx, 8
+			//mov		al, dl
+			TmpEBX >>= 8;
+			TmpAL = TraceGrd[TmpEAX];
+			TmpDL = TmpAL;
+			TmpAH = TmpBL;
+			TmpUInt = TmpEDX << (32 - 8);
+			TmpEDX = (TmpEDX >> 8) | TmpUInt;
+			TmpAL = TmpDL;
 
-				add		edi, 4
+			//add		edi, 4
+			TmpEDI += 4;
 
-				shr		ebx, 8
-				mov		al, [TraceGrd + eax]
-				mov		dl, al
-				mov		ah, bl
-				ror		edx, 8
-				mov		al, dl
+			//shr		ebx, 8
+			//mov		al, [TraceGrd + eax]
+			//mov		dl, al
+			//mov		ah, bl
+			//ror		edx, 8
+			//mov		al, dl
+			TmpEBX >>= 8;
+			TmpAL = TraceGrd[TmpEAX];
+			TmpDL = TmpAL;
+			TmpAH = TmpBL;
+			TmpUInt = TmpEDX << (32 - 8);
+			TmpEDX = (TmpEDX >> 8) | TmpUInt;
+			TmpAL = TmpDL;
 
-				add		esi, 4
+			//add		esi, 4
+			TmpESI += 4;
 
-				mov		al, [TraceGrd + eax]
-				mov		dl, al
-				ror		edx, 8
-				dec		cl
+			//mov		al, [TraceGrd + eax]
+			//mov		dl, al
+			//ror		edx, 8
+			TmpAL = TraceGrd[TmpEAX];
+			TmpDL = TmpAL;
+			TmpUInt = TmpEDX << (32 - 8);
+			TmpEDX = (TmpEDX >> 8) | TmpUInt;
+			//dec		cl
 
-				mov[edi - 4], edx
+			//mov[edi - 4], edx
 
-				jnz		lab2o
-				add		esi, badd
-				add		edi, scadd
-				dec		ch
-				jnz		lab1o
-				pop		edi
-				pop		esi
+			//jnz		lab2o
+			//add		esi, badd
+			//add		edi, scadd
+			//dec		ch
+			//jnz		lab1o
+			*reinterpret_cast<unsigned int *>(TmpEDI - 4) = TmpEDX;
+			TmpCL--;
+			if (TmpCL != 0) goto lab2o;
+			TmpESI += badd;
+			TmpEDI += scadd;
+			TmpCH--;
+			if (TmpCH != 0) goto lab1o;
+			//pop		edi
+			//pop		esi
 		};
 	};
 };
@@ -214,43 +288,71 @@ void ProcessBlobs() {
 	int MaxY = ((mapy + smaply) << 9) + 32 * 16;
 	memset(BlobVisible, 0, MaxBlob);
 	int ddd = !(tmtmt & 3);
-	__asm {
-		push	esi
-		push	edi
-		mov		esi, NBlobs;
-		xor		ecx, ecx
-			mov		ebx, MinX
-			mov		edx, MaxX
-			mov		edi, MinY
-			lpp1 : mov		al, [BlobTime + ecx]
-			or al, al
-			jnz		lpp2
-			inc		ecx
-			dec		esi
-			jnz		lpp1
-			jmp     final
-			lpp2:	mov		eax, [BlobVx + ecx * 4]
-			add[BlobX + ecx * 4], eax
-			mov		eax, [BlobVy + ecx * 4]
-			add[BlobY + ecx * 4], eax
-			dec		byte ptr[BlobTime + ecx]
-			mov		eax, [BlobX + ecx * 4]
-			cmp		eax, ebx
-			jl		NoShow
-			cmp		eax, edx
-			jg		NoShow
-			mov		eax, [BlobY + ecx * 4]
-			cmp		eax, edi
-			jl		NoShow
-			cmp		eax, MaxY
-			jg		NoShow
-			mov		byte ptr[BlobVisible + ecx], 1
-			NoShow: inc		ecx
-			dec		esi
-			jnz		lpp1
-			final:
-		pop		edi
-			pop		esi
+	// BoonXRay 14.08.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//mov		esi, NBlobs;
+		//xor		ecx, ecx
+		//mov		ebx, MinX
+		//mov		edx, MaxX
+		//mov		edi, MinY
+		int TmpESI = NBlobs;
+		int TmpEAX = 0, TmpEBX = MinX, TmpECX = 0, TmpEDX = MaxX, TmpEDI = MinY;
+		char & TmpAL = *reinterpret_cast<char *>(&TmpEAX);
+	lpp1 : 
+		//mov		al, [BlobTime + ecx]
+		//or al, al
+		//jnz		lpp2
+		//inc		ecx
+		//dec		esi
+		//jnz		lpp1
+		//jmp     final_label
+		TmpAL = BlobTime[TmpECX];
+		if (TmpAL != 0) goto lpp2;
+		TmpECX++;
+		TmpESI--;
+		if (TmpESI != 0) goto lpp1;
+		goto final_label;
+	lpp2:	
+		//mov		eax, [BlobVx + ecx * 4]
+		//add[BlobX + ecx * 4], eax
+		//mov		eax, [BlobVy + ecx * 4]
+		//add[BlobY + ecx * 4], eax
+		//dec		byte ptr[BlobTime + ecx]
+		//mov		eax, [BlobX + ecx * 4]
+		BlobX[TmpECX] += BlobVx[TmpECX];
+		BlobY[TmpECX] += BlobVy[TmpECX];
+		BlobTime[TmpECX]--;
+		TmpEAX = BlobX[TmpECX];
+		//cmp		eax, ebx
+		//jl		NoShow
+		//cmp		eax, edx
+		//jg		NoShow
+		//mov		eax, [BlobY + ecx * 4]
+		//cmp		eax, edi
+		//jl		NoShow
+		//cmp		eax, MaxY
+		//jg		NoShow
+		//mov		byte ptr[BlobVisible + ecx], 1
+		if (TmpEAX < TmpEBX) goto NoShow;
+		if (TmpEAX > TmpEDX) goto NoShow;
+		TmpEAX = BlobY[TmpECX];
+		if (TmpEAX < TmpEDI) goto NoShow;
+		if (TmpEAX > MaxY) goto NoShow;
+		BlobVisible[TmpECX] = 1;
+	NoShow: 
+		//inc		ecx
+		//dec		esi
+		//jnz		lpp1
+		TmpECX++;
+		TmpESI--;
+		if (TmpESI != 0) goto lpp1;
+	final_label:
+		//pop		edi
+		//pop		esi
+		;
 	}
 
 	MinX = mapx * 32;
@@ -329,23 +431,37 @@ void AddBlob(int x, int y, byte Dir, bool dir2)
 	}
 	else
 	{
-		__asm
+		// BoonXRay 14.08.2017
+		//__asm
 		{
-			mov		eax, CurBlob
-			mov		ecx, MaxBlob
-			sub		ecx, eax
-			lpp1 : cmp		byte ptr[BlobTime + eax], 0
-				   je		lpp2
-				   inc		eax
-				   dec		ecx
-				   jnz		lpp1
-				   mov		Cur, -1
-				   jmp		lpp3
-				   lpp2 : mov		Cur, eax
-						  inc		eax
-						  lpp3 : mov		CurBlob, eax
+			//mov		eax, CurBlob
+			//mov		ecx, MaxBlob
+			//sub		ecx, eax
+			int TmpEAX = CurBlob, TmpECX = MaxBlob - CurBlob;
+		lpp1:
+			//cmp		byte ptr[BlobTime + eax], 0
+			//je		lpp2
+			//inc		eax
+			//dec		ecx
+			//jnz		lpp1
+			//mov		Cur, -1
+			//jmp		lpp3
+			if (BlobTime[TmpEAX] == 0) goto lpp2;
+			TmpEAX++;
+			TmpECX--;
+			if (TmpECX != 0) goto lpp1;
+			Cur = -1;
+			goto lpp3;
+		lpp2:
+			//mov		Cur, eax
+			//inc		eax
+			Cur = TmpEAX;
+			TmpEAX++;
+		lpp3:
+			//mov		CurBlob, eax
+			CurBlob = TmpEAX;
 		}
-	}
+	}	
 
 	if (CurBlob >= MaxBlob)
 	{

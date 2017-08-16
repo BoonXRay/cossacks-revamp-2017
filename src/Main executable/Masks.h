@@ -31,5 +31,4 @@ void PrepareIntersection2(int bm1,int bm2,int bm3,
 						  int x0,int y01,
 						  int s1,int s2,int s3,
 						  RLCTable Masks,byte* BitmapsArray);
-void ShowIntersectionBuffer();
 int GetBmOfst(int i);

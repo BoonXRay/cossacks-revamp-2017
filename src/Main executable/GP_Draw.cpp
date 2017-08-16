@@ -327,11 +327,14 @@ int GP_Header::GetLx()
 		DIFF = GPH->NextPict;
 		int Lxx = GPH->dx + GPH->Lx;
 		if (Lxx > LxMax)LxMax = Lxx;
-		__asm {
+		// BoonXRay 08.07.2017 
+		/*__asm {
 			mov	eax, GPS
 			add	eax, DIFF
 			mov	GPH, eax
-		};
+		};*/
+		char * TmpPtr = reinterpret_cast<char *>(GPS);
+		GPH = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 	} while (DIFF != -1);
 	return LxMax;
 };
@@ -346,11 +349,14 @@ int GP_Header::GetLy()
 		DIFF = GPH->NextPict;
 		int Lyy = GPH->dy + GPH->Ly;
 		if (Lyy > LyMax)LyMax = Lyy;
-		__asm {
+		// BoonXRay 08.07.2017 
+		/*__asm {
 			mov	eax, GPS
 			add	eax, DIFF
 			mov	GPH, eax
-		};
+		};*/
+		char * TmpPtr = reinterpret_cast<char *>(GPS);
+		GPH = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 	} while (DIFF != -1);
 	return LyMax;
 };
@@ -365,11 +371,14 @@ int GP_Header::GetDx()
 		DIFF = GPH->NextPict;
 		int Lxx = GPH->dx;
 		if (Lxx < LxMax)LxMax = Lxx;
-		__asm {
+		// BoonXRay 08.07.2017 
+		/*__asm {
 			mov	eax, GPS
 			add	eax, DIFF
 			mov	GPH, eax
-		};
+		};*/
+		char * TmpPtr = reinterpret_cast<char *>(GPS);
+		GPH = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 	} while (DIFF != -1);
 	return LxMax;
 };
@@ -384,11 +393,14 @@ int GP_Header::GetDy()
 		DIFF = GPH->NextPict;
 		int Lxx = GPH->dy;
 		if (Lxx < LxMax)LxMax = Lxx;
-		__asm {
+		// BoonXRay 08.07.2017
+		/*__asm {
 			mov	eax, GPS
 			add	eax, DIFF
 			mov	GPH, eax
-		};
+		};*/
+		char * TmpPtr = reinterpret_cast<char *>(GPS);
+		GPH = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 	} while (DIFF != -1);
 	return LxMax;
 }
@@ -569,11 +581,14 @@ bool GP_System::LoadGP( int i )
 				{
 					DIFF = LGP->NextPict;
 					csz++;
-					__asm {
+					// BoonXRay 08.07.2017
+					/*__asm {
 						mov	eax, LGP0
 						add	eax, DIFF
 						mov	LGP, eax
-					};
+					};*/
+					char * TmpPtr = reinterpret_cast<char *>(LGP0);
+					LGP = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 				} while (DIFF != -1);
 			};
 			CASHREF[i] = new DWORD[csz + 1];
@@ -591,11 +606,14 @@ bool GP_System::LoadGP( int i )
 				{
 					DIFF = LGP->NextPict;
 					csz++;
-					__asm {
+					// BoonXRay 08.07.2017 
+					/*__asm {
 						mov	eax, LGP0;
 						add	eax, DIFF
 							mov	LGP, eax
-					};
+					};*/
+					char * TmpPtr = reinterpret_cast<char *>(LGP0);
+					LGP = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 				} while (DIFF != -1);
 			};
 			return true;
@@ -650,7 +668,9 @@ void GP_ShowMaskedPict( int x, int y, GP_Header* Pic, byte* CData, byte* Encoder
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof( GP_Header );
 
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)
 	{
@@ -663,50 +683,91 @@ void GP_ShowMaskedPict( int x, int y, GP_Header* Pic, byte* CData, byte* Encoder
 
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 08.07.2017
+		//__asm
 		{
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>( &TmpEAX);
+			unsigned char & TmpAH = *( reinterpret_cast<unsigned char *>(&TmpEAX) + 1 );
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+				//mov		al, [ebx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+				//test	al, 128
+				//jz		SIMPLE_LINE
+				if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+				//inc		ebx
+				TmpEBX++;
+				//mov		ah, al
+				TmpAH = TmpAL;
+				//and		al, 31
+				TmpAL &= 31;
+				//or al, al
+				//jz		COMPLINE_1
+				if (TmpAL == 0) goto COMPLINE_1;
+				//and		ah, 32
+				//shr		ah, 1
+				TmpAH = (TmpAH & 32) >> 1;
+		COMPLINE_LOOP1:
+				//mov		dl, [ebx]
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+				//shr		dl, 4
+				TmpDL >>= 4;
+				//or dl, ah
+				TmpDL |= TmpAH;
+				//add		CDPOS, edx
+				CDPOS += TmpEDX;
+				//inc		ebx
+				TmpEBX++;
+				//dec		al
+				TmpAL--;
+				//jnz		COMPLINE_LOOP1
+				if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+				//xor		eax, eax
+				TmpEAX = 0;
+				//dec		ecx
+				TmpECX--;
+				//jnz		NLINE
+				if (TmpECX != 0) goto NLINE;
+				//jmp		END_VCLIP
+				goto END_VCLIP;
+		SIMPLE_LINE : 
+				//inc		ebx
+				TmpEBX++;
+				//or eax, eax
+				//jz		SIMPLINE_1
+				if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+				//mov		dl, [ebx + 1]
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX + 1);
+				//add		CDPOS, edx
+				CDPOS += TmpEDX;
+				//add		ebx, 2
+				TmpEBX += 2;
+				//dec		al
+				TmpAL--;
+				//jnz		SIMPLINE_LOOP1
+				if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+				//dec		ecx
+				TmpECX--;
+				//jnz		NLINE
+				if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+				//mov		ofst, ebx
+				ofst = TmpEBX;
 		}
 	}
 	//bottom clipper
@@ -734,104 +795,176 @@ void GP_ShowMaskedPict( int x, int y, GP_Header* Pic, byte* CData, byte* Encoder
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm
+		// BoonXRay 08.07.2017
+		//__asm
 		{
-			pushf
-			push	esi
-			push	edi
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder		//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				mov		al, cl
-				shr		cl, 2
-				and al, 3
-				rep		movsd
-				mov		cl, al
-				rep		movsb
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			//mov		ebx, Encoder		//ebx-encoding pointer
+			//unsigned int TmpEBX = reinterpret_cast<unsigned int>( Encoder );		//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			//cld
+			//sub		edi, ScrWidth
+			TmpEDI -= ScrWidth;
+			//mov		LineStart, edi
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			TmpEDI = LineStart;
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or		al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or		al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//mov		al, cl
+			TmpAL = TmpCL;
+			//shr		cl, 2
+			TmpCL >>= 2;
+			//and		al, 3
+			TmpAL &= 3;
+			//rep		movsd
+			for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+				*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//rep		movsb
+			for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				mov		al, cl
-				shr		cl, 2
-				and al, 3
-				rep		movsd
-				mov		cl, al
-				rep		movsb
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//mov		SPACE_MASK, 0
+			SPACE_MASK = 0;
+			//mov		PIX_MASK, 0
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//and		al, 15
+			TmpAL &= 15;
+			//or		al, SPACE_MASK
+			TmpAL |= SPACE_MASK;
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//shr		cl, 4
+			TmpCL >>= 4;
+			//or		cl, PIX_MASK
+			TmpCL |= PIX_MASK;
+			//inc		edx
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//mov		al, cl
+			TmpAL = TmpCL;
+			//shr		cl, 2
+			TmpCL >>= 2;
+			//and		al, 3
+			TmpAL &= 3;
+			//rep		movsd
+			for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+				*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//rep		movsb
+			for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		}
 	}
 	else
@@ -847,147 +980,256 @@ void GP_ShowMaskedPict( int x, int y, GP_Header* Pic, byte* CData, byte* Encoder
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm
+			// BoonXRay 08.07.2017 			
+			//__asm
 			{
-				pushf
-				push	esi
-				push	edi
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				//unsigned int TmpEBX = reinterpret_cast<unsigned int>( Encoder );		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				//cld
+				//sub		edi, ScrWidth
+				TmpEDI -= ScrWidth;
+				//mov		LineStart, edi
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				TmpEDI = LineStart;
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//inc		edx
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if ( static_cast<unsigned int>( CURCLIP ) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					mov		al, cl
-					shr		cl, 2
-					and al, 3
-					rep		movsd
-					mov		cl, al
-					rep		movsb
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//mov		al, cl
+				TmpAL = TmpCL;
+				//shr		cl, 2
+				TmpCL >>= 2;
+				//and		al, 3
+				TmpAL &= 3;
+				//rep		movsd
+				for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+					*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//rep		movsb
+				for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				SPACE_MASK = 0;
+				//mov		PIX_MASK, 0
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//and		al, 15
+				TmpAL &= 15;
+				//or al, SPACE_MASK
+				TmpAL |= SPACE_MASK;
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//shr		cl, 4
+				TmpCL >>= 4;
+				//or cl, PIX_MASK
+				TmpCL |= PIX_MASK;
+				//inc		edx
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					mov		al, cl
-					shr		cl, 2
-					and al, 3
-					rep		movsd
-					mov		cl, al
-					rep		movsb
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//mov		al, cl
+				TmpAL = TmpCL;
+				//shr		cl, 2
+				TmpCL >>= 2;
+				//and		al, 3
+				TmpAL &= 3;
+				//rep		movsd
+				for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+					*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//rep		movsb
+				for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			}
 		}
 		else
@@ -1003,153 +1245,264 @@ void GP_ShowMaskedPict( int x, int y, GP_Header* Pic, byte* CData, byte* Encoder
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm
+				// BoonXRay 09.07.2017 				
+				//__asm
 				{
-					pushf
-					push	esi
-					push	edi
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					//unsigned int TmpEBX = reinterpret_cast<unsigned int>( Encoder );		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					//cld
+					//sub		edi, ScrWidth
+					TmpEDI -= ScrWidth;
+					//mov		LineStart, edi
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					TmpEDI = LineStart;
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//inc		edx
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						mov		al, cl
-						shr		cl, 2
-						and al, 3
-						rep		movsd
-						mov		cl, al
-						rep		movsb
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//mov		al, cl
+					TmpAL = TmpCL;
+					//shr		cl, 2
+					TmpCL >>= 2;
+					//and		al, 3
+					TmpAL &= 3;
+					//rep		movsd
+					for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+						*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+					//mov		cl, al
+					TmpCL = TmpAL;
+					//rep		movsb
+					for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+						*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					SPACE_MASK = 0;
+					//mov		PIX_MASK, 0
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//mov		cl, al
+					TmpCL = TmpAL;
+					//and		al, 15
+					TmpAL &= 15;
+					//or al, SPACE_MASK
+					TmpAL |= SPACE_MASK;
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//shr		cl, 4
+					TmpCL >>= 4;
+					//or cl, PIX_MASK
+					TmpCL |= PIX_MASK;
+					//inc		edx
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						mov		al, cl
-						shr		cl, 2
-						and al, 3
-						rep		movsd
-						mov		cl, al
-						rep		movsb
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//mov		al, cl
+					TmpAL = TmpCL;
+					//shr		cl, 2
+					TmpCL >>= 2;
+					//and		al, 3
+					TmpAL &= 3;
+					//rep		movsd
+					for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+						*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+					//mov		cl, al
+					TmpCL = TmpAL;
+					//rep		movsb
+					for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+						*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				}
 			}
 		}
@@ -1162,56 +1515,101 @@ void GP_ShowMaskedPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof( GP_Header );
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 09.07.2017 
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX + 1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -1233,105 +1631,178 @@ void GP_ShowMaskedPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 09.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		LP0_1
-				LP0_0 : movsb
-				sub		edi, 2
-				dec		cl
-				jnz		LP0_0
-				LP0_1 :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			//unsigned int TmpEBX = reinterpret_cast<unsigned int>( Encoder );		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			//cld
+			//sub		edi, ScrWidth
+			TmpEDI -= ScrWidth;
+			//mov		LineStart, edi
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			TmpEDI = LineStart;
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		LP0_1
+			if (TmpCL == 0) goto LP0_1;
+		LP0_0 : 
+			//movsb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpEDI++;
+			//sub		edi, 2
+			TmpEDI -= 2;
+			//dec		cl
+			TmpCL--;
+			//jnz		LP0_0
+			if (TmpCL != 0) goto LP0_0;
+		LP0_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		LP1_1
-				LP1_0 : movsb
-				sub		edi, 2
-				dec		cl
-				jnz		LP1_0
-				LP1_1 :
+			//mov		SPACE_MASK, 0
+			SPACE_MASK = 0;
+			//mov		PIX_MASK, 0
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//and		al, 15
+			TmpAL &= 15;
+			//or al, SPACE_MASK
+			TmpAL |= SPACE_MASK;
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//shr		cl, 4
+			TmpCL >>= 4;
+			//or cl, PIX_MASK
+			TmpCL |= PIX_MASK;
+			//inc		edx
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		LP1_1
+			if (TmpCL == 0) goto LP1_1;
+		LP1_0 : 
+			//movsb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpEDI++;
+			//sub		edi, 2
+			TmpEDI -= 2;
+			//dec		cl
+			TmpCL--;
+			//jnz		LP1_0
+			if (TmpCL != 0) goto LP1_0;
+		LP1_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -1347,148 +1818,258 @@ void GP_ShowMaskedPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 09.07.2017 
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				//unsigned int TmpEBX = reinterpret_cast<unsigned int>( Encoder );		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				//cld
+				//sub		edi, ScrWidth
+				TmpEDI -= ScrWidth;
+				//mov		LineStart, edi
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				TmpEDI = LineStart;
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//inc		edx
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		LP2_1
-					LP2_0 : movsb
-					sub		edi, 2
-					dec		cl
-					jnz		LP2_0
-					LP2_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		LP2_1
+				if (TmpCL == 0) goto LP2_1;
+			LP2_0 : 
+				//movsb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpEDI++;
+				//sub		edi, 2
+				TmpEDI -= 2;
+				//dec		cl
+				TmpCL--;
+				//jnz		LP2_0
+				if (TmpCL != 0) goto LP2_0;
+			LP2_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				SPACE_MASK = 0;
+				//mov		PIX_MASK, 0
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//and		al, 15
+				TmpAL &= 15;
+				//or al, SPACE_MASK
+				TmpAL |= SPACE_MASK;
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//shr		cl, 4
+				TmpCL >>= 4;
+				//or cl, PIX_MASK
+				TmpCL |= PIX_MASK;
+				//inc		edx
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>( CURCLIP ) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		LP3_1
-					LP3_0 : movsb
-					sub		edi, 2
-					dec		cl
-					jnz		LP3_0
-					LP3_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		LP3_1
+				if (TmpCL == 0) goto LP3_1;
+			LP3_0 : 
+				//movsb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpEDI++;
+				//sub		edi, 2
+				TmpEDI -= 2;
+				//dec		cl
+				TmpCL--;
+				//jnz		LP3_0
+				if (TmpCL != 0) goto LP3_0;
+			LP3_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -1504,154 +2085,265 @@ void GP_ShowMaskedPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 09.07.2017 
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					//cld
+					//sub		edi, ScrWidth
+					TmpEDI -= ScrWidth;
+					//mov		LineStart, edi
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					TmpEDI = LineStart;
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//inc		edx
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		LP4_1
-						LP4_0 : movsb
-						sub		edi, 2
-						dec		cl
-						jnz		LP4_0
-						LP4_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		LP4_1
+					if (TmpCL == 0) goto LP4_1;
+				LP4_0 : 
+					//movsb
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					TmpEDI++;
+					//sub		edi, 2
+					TmpEDI -= 2;
+					//dec		cl
+					TmpCL--;
+					//jnz		LP4_0
+					if (TmpCL != 0) goto LP4_0;
+				LP4_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					SPACE_MASK = 0;
+					//mov		PIX_MASK, 0
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//mov		cl, al
+					TmpCL = TmpAL;
+					//and		al, 15
+					TmpAL &= 15;
+					//or al, SPACE_MASK
+					TmpAL |= SPACE_MASK;
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//shr		cl, 4
+					TmpCL >>= 4;
+					//or cl, PIX_MASK
+					TmpCL |= PIX_MASK;
+					//inc		edx
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		LP5_1
-						LP5_0 : movsb
-						sub		edi, 2
-						dec		cl
-						jnz		LP5_0
-						LP5_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		LP5_1
+					if (TmpCL == 0) goto LP5_1;
+				LP5_0 : 
+					//movsb
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					TmpEDI++;
+					//sub		edi, 2
+					TmpEDI -= 2;
+					//dec		cl
+					TmpCL--;
+					//jnz		LP5_0
+					if (TmpCL != 0) goto LP5_0;
+				LP5_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -1675,56 +2367,101 @@ void GP_ShowMaskedPictShadow( int x, int y, GP_Header* Pic, byte* CData, byte* E
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof( GP_Header );
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 10.07.2017		
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX + 1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -1746,111 +2483,186 @@ void GP_ShowMaskedPictShadow( int x, int y, GP_Header* Pic, byte* CData, byte* E
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 10.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		SH0_1
-				xor		eax, eax
-				SH0_0 : mov		al, [edi]
-				mov		al, [ebx + eax]
-				mov[edi], al
-				inc		edi
-				dec		cl
-				jnz		SH0_0
-				SH0_1 :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			//cld
+			//sub		edi, ScrWidth
+			TmpEDI -= ScrWidth;
+			//mov		LineStart, edi
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			TmpEDI = LineStart;
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		SH0_1
+			if (TmpCL == 0) goto SH0_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		SH0_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX+TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//inc		edi
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		SH0_0
+			if (TmpCL != 0) goto SH0_0;
+		SH0_1 :
 			//*****************************************//
 			//          end of variation zone          //
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		SH1_1
-				xor		eax, eax
-				SH1_0 : mov		al, [edi]
-				mov		al, [ebx + eax]
-				mov[edi], al
-				inc		edi
-				dec		cl
-				jnz		SH1_0
-				SH1_1 :
+			//mov		SPACE_MASK, 0
+			SPACE_MASK = 0;
+			//mov		PIX_MASK, 0
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//and		al, 15
+			TmpAL &= 15;
+			//or al, SPACE_MASK
+			TmpAL |= SPACE_MASK;
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//shr		cl, 4
+			TmpCL >>= 4;
+			//or cl, PIX_MASK
+			TmpCL |= PIX_MASK;
+			//inc		edx
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		SH1_1
+			if (TmpCL == 0) goto SH1_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		SH1_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX+TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//inc		edi
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		SH1_0
+			if (TmpCL != 0) goto SH1_0;
+		SH1_1 :
 			//*****************************************//
 			//          end of variation zone          //
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -1866,154 +2678,266 @@ void GP_ShowMaskedPictShadow( int x, int y, GP_Header* Pic, byte* CData, byte* E
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 15.07.2017 
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				//cld
+				//sub		edi, ScrWidth
+				TmpEDI -= ScrWidth;
+				//mov		LineStart, edi
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				TmpEDI = LineStart;
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//inc		edx
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		SH2_1
-					xor		eax, eax
-					SH2_0 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					inc		edi
-					dec		cl
-					jnz		SH2_0
-					SH2_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		SH2_1
+				if (TmpCL == 0) goto SH2_1;
+				//xor		eax, eax
+				TmpEAX = 0;
+			SH2_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//inc		edi
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		SH2_0
+				if (TmpCL != 0) goto SH2_0;
+			SH2_1 :
 				//*****************************************//
 				//          end of variation zone          //
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				SPACE_MASK = 0;
+				//mov		PIX_MASK, 0
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//and		al, 15
+				TmpAL &= 15;
+				//or al, SPACE_MASK
+				TmpAL |= SPACE_MASK;
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//shr		cl, 4
+				TmpCL >>= 4;
+				//or cl, PIX_MASK
+				TmpCL |= PIX_MASK;
+				//inc		edx
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		SH3_1
-					xor		eax, eax
-					SH3_0 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					inc		edi
-					dec		cl
-					jnz		SH3_0
-					SH3_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		SH3_1
+				if (TmpCL == 0) goto SH3_1;
+				//xor		eax, eax
+				TmpEAX = 0;
+			SH3_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//inc		edi
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		SH3_0
+				if (TmpCL != 0) goto SH3_0;
+			SH3_1 :
 				//*****************************************//
 				//          end of variation zone          //
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -2029,160 +2953,274 @@ void GP_ShowMaskedPictShadow( int x, int y, GP_Header* Pic, byte* CData, byte* E
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 15.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					//cld
+					//sub		edi, ScrWidth
+					TmpEDI -= ScrWidth;
+					//mov		LineStart, edi
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					TmpEDI = LineStart;
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//inc		edx
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		SH4_1
-						xor		eax, eax
-						SH4_0 : mov		al, [edi]
-						mov		al, [ebx + eax]
-						mov[edi], al
-						inc		edi
-						dec		cl
-						jnz		SH4_0
-						SH4_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		SH4_1
+					if (TmpCL == 0) goto SH4_1;
+					//xor		eax, eax
+					TmpEAX = 0;
+				SH4_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//inc		edi
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		SH4_0
+					if (TmpCL != 0) goto SH4_0;
+				SH4_1 :
 					//*****************************************//
 					//          end of variation zone          //
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					SPACE_MASK = 0;
+					//mov		PIX_MASK, 0
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//mov		cl, al
+					TmpCL = TmpAL;
+					//and		al, 15
+					TmpAL &= 15;
+					//or al, SPACE_MASK
+					TmpAL |= SPACE_MASK;
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//shr		cl, 4
+					TmpCL >>= 4;
+					//or cl, PIX_MASK
+					TmpCL |= PIX_MASK;
+					//inc		edx
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		SH5_1
-						xor		eax, eax
-						SH5_0 : mov		al, [edi]
-						mov		al, [ebx + eax]
-						mov[edi], al
-						inc		edi
-						dec		cl
-						jnz		SH5_0
-						SH5_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		SH5_1
+					if (TmpCL == 0) goto SH5_1;
+					//xor		eax, eax
+					TmpEAX = 0;
+				SH5_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//inc		edi
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		SH5_0
+					if (TmpCL != 0) goto SH5_0;
+				SH5_1 :
 					//*****************************************//
 					//          end of variation zone          //
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -2194,56 +3232,101 @@ void GP_ShowMaskedPictShadowInv( int x, int y, GP_Header* Pic, byte* CData, byte
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof( GP_Header );
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 15.07.2017 
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX + 1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -2265,111 +3348,186 @@ void GP_ShowMaskedPictShadowInv( int x, int y, GP_Header* Pic, byte* CData, byte
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 15.07.2017 
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		SH0_1
-				xor		eax, eax
-				SH0_0 : mov		al, [edi]
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		SH0_0
-				SH0_1 :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			//cld
+			//sub		edi, ScrWidth
+			TmpEDI -= ScrWidth;
+			//mov		LineStart, edi
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			TmpEDI = LineStart;
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		SH0_1
+			if (TmpCL == 0) goto SH0_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		SH0_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		SH0_0
+			if (TmpCL != 0) goto SH0_0;
+		SH0_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		SH1_1
-				xor		eax, eax
-				SH1_0 : mov		al, [edi]
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		SH1_0
-				SH1_1 :
+			//mov		SPACE_MASK, 0
+			SPACE_MASK = 0;
+			//mov		PIX_MASK, 0
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//and		al, 15
+			TmpAL &= 15;
+			//or al, SPACE_MASK
+			TmpAL |= SPACE_MASK;
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//shr		cl, 4
+			TmpCL >>= 4;
+			//or cl, PIX_MASK
+			TmpCL |= PIX_MASK;
+			//inc		edx
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		SH1_1
+			if (TmpCL == 0) goto SH1_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		SH1_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		SH1_0
+			if (TmpCL != 0) goto SH1_0;
+		SH1_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -2385,154 +3543,266 @@ void GP_ShowMaskedPictShadowInv( int x, int y, GP_Header* Pic, byte* CData, byte
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 15.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				//cld
+				//sub		edi, ScrWidth
+				TmpEDI -= ScrWidth;
+				//mov		LineStart, edi
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				TmpEDI = LineStart;
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//inc		edx
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		SH2_1
-					xor		eax, eax
-					SH2_0 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		SH2_0
-					SH2_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+				CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		SH2_1
+				if (TmpCL == 0) goto SH2_1;
+				//xor		eax, eax
+				TmpEAX = 0;
+			SH2_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		SH2_0
+				if (TmpCL != 0) goto SH2_0;
+			SH2_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				SPACE_MASK = 0;
+				//mov		PIX_MASK, 0
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//and		al, 15
+				TmpAL &= 15;
+				//or al, SPACE_MASK
+				TmpAL |= SPACE_MASK;
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//shr		cl, 4
+				TmpCL >>= 4;
+				//or cl, PIX_MASK
+				TmpCL |= PIX_MASK;
+				//inc		edx
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		SH3_1
-					xor		eax, eax
-					SH3_0 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		SH3_0
-					SH3_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		SH3_1
+				if (TmpCL == 0) goto SH3_1;
+				//xor		eax, eax
+				TmpEAX = 0;
+			SH3_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		SH3_0
+				if (TmpCL != 0) goto SH3_0;
+			SH3_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -2548,160 +3818,274 @@ void GP_ShowMaskedPictShadowInv( int x, int y, GP_Header* Pic, byte* CData, byte
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 15.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					//cld
+					//sub		edi, ScrWidth
+					TmpEDI -= ScrWidth;
+					//mov		LineStart, edi
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					TmpEDI = LineStart;
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//inc		edx
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		SH4_1
-						xor		eax, eax
-						SH4_0 : mov		al, [edi]
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		SH4_0
-						SH4_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		SH4_1
+					if (TmpCL == 0) goto SH4_1;
+					//xor		eax, eax
+					TmpEAX = 0;
+				SH4_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		SH4_0
+					if (TmpCL != 0) goto SH4_0;
+				SH4_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					SPACE_MASK = 0;
+					//mov		PIX_MASK, 0
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//mov		cl, al
+					TmpCL = TmpAL;
+					//and		al, 15
+					TmpAL &= 15;
+					//or al, SPACE_MASK
+					TmpAL |= SPACE_MASK;
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//shr		cl, 4
+					TmpCL >>= 4;
+					//or cl, PIX_MASK
+					TmpCL |= PIX_MASK;
+					//inc		edx
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		SH5_1
-						xor		eax, eax
-						SH5_0 : mov		al, [edi]
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		SH5_0
-						SH5_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		SH5_1
+					if (TmpCL == 0) goto SH5_1;
+					//xor		eax, eax
+					TmpEAX = 0;
+				SH5_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		SH5_0
+					if (TmpCL != 0) goto SH5_0;
+				SH5_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -2725,7 +4109,9 @@ void GP_ShowMaskedPictOverpoint( int x, int y, GP_Header* Pic, byte* CData, byte
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	int OCNTR = y;
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)return;
 	//vertical clipping
@@ -2733,49 +4119,92 @@ void GP_ShowMaskedPictOverpoint( int x, int y, GP_Header* Pic, byte* CData, byte
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 15.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 		OCNTR = WindY;
 	};
@@ -2798,117 +4227,202 @@ void GP_ShowMaskedPictOverpoint( int x, int y, GP_Header* Pic, byte* CData, byte
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 15.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		SH0_1
-				mov		eax, OCNTR
-				SH0_0 : add		eax, edi
-				test	al, 1
-				jz		SH0_0A
-				mov		byte ptr[edi], 0
-				SH0_0A : sub		eax, edi
-				inc		edi
-				dec		cl
-				jnz		SH0_0
-				SH0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			inc     OCNTR
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			//cld
+			//sub		edi, ScrWidth
+			TmpEDI -= ScrWidth;
+			//mov		LineStart, edi
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			TmpEDI = LineStart;
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		SH0_1
+			if (TmpCL == 0) goto SH0_1;
+			//mov		eax, OCNTR
+			TmpEAX = OCNTR;
+		SH0_0 : 
+			//add		eax, edi
+			TmpEAX += TmpEDI;
+			//test	al, 1
+			//jz		SH0_0A
+			if ((TmpAL & 1) == 0) goto SH0_0A;
+			//mov		byte ptr[edi], 0
+			*reinterpret_cast<unsigned char *>(TmpEDI) = 0;
+		SH0_0A : 
+			//sub		eax, edi
+			TmpEAX -= TmpEDI;
+			//inc		edi
+			TmpEAX++;
+			//dec		cl
+			TmpCL--;
+			//jnz		SH0_0
+			if (TmpCL != 0) goto SH0_0;
+		SH0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//inc     OCNTR
+			OCNTR++;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		SH1_1
-				mov		eax, OCNTR
-				SH1_0 : add		eax, edi
-				test	al, 1
-				jz		SH1_0A
-				mov		byte ptr[edi], 0
-				SH1_0A : sub		eax, edi
-				inc		edi
-				dec		cl
-				jnz		SH1_0
-				SH1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				inc     OCNTR
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//mov		SPACE_MASK, 0
+			SPACE_MASK = 0;
+			//mov		PIX_MASK, 0
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//mov		cl, al
+			TmpCL = TmpAL;
+			//and		al, 15
+			TmpAL &= 15;
+			//or al, SPACE_MASK
+			TmpAL |= SPACE_MASK;
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//shr		cl, 4
+			TmpCL >>= 4;
+			//or cl, PIX_MASK
+			TmpCL |= PIX_MASK;
+			//inc		edx
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		SH1_1
+			if (TmpCL == 0) goto SH1_1;
+			//mov		eax, OCNTR
+			TmpEAX = OCNTR;
+		SH1_0 : 
+			//add		eax, edi
+			TmpEAX += TmpEDI;
+			//test	al, 1
+			//jz		SH1_0A
+			if ((TmpAL & 1) == 0) goto SH1_0A;
+			//mov		byte ptr[edi], 0
+			*reinterpret_cast<unsigned char *>(TmpEDI) = 0;
+		SH1_0A : 
+			//sub		eax, edi
+			TmpEAX -= TmpEDI;
+			//inc		edi
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		SH1_0
+			if (TmpCL != 0) goto SH1_0;
+		SH1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//inc     OCNTR
+			OCNTR++;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -2924,160 +4438,282 @@ void GP_ShowMaskedPictOverpoint( int x, int y, GP_Header* Pic, byte* CData, byte
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 15.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				//cld
+				//sub		edi, ScrWidth
+				TmpEDI -= ScrWidth;
+				//mov		LineStart, edi
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				TmpEDI = LineStart;
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//inc		edx
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		SH2_1
-					mov		eax, OCNTR
-					SH2_0 : add		eax, edi
-					test	al, 1
-					jz		SH2_0A
-					mov		byte ptr[edi], 0
-					SH2_0A : sub		eax, edi
-					inc		edi
-					dec		cl
-					jnz		SH2_0
-					SH2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				inc		OCNTR
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		SH2_1
+				if (TmpCL == 0) goto SH2_1;
+				//mov		eax, OCNTR
+				TmpEAX = OCNTR;
+			SH2_0 : 
+				//add		eax, edi
+				TmpEAX += TmpEDI;
+				//test	al, 1
+				//jz		SH2_0A
+				if ((TmpAL & 1) == 0) goto SH2_0A;
+				//mov		byte ptr[edi], 0
+				*reinterpret_cast<unsigned char *>(TmpEDI) = 0;
+			SH2_0A : 
+				//sub		eax, edi
+				TmpEAX -= TmpEDI;
+				//inc		edi
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		SH2_0
+				if (TmpCL != 0) goto SH2_0;
+			SH2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//inc		OCNTR
+				OCNTR++;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				SPACE_MASK = 0;
+				//mov		PIX_MASK, 0
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//mov		cl, al
+				TmpCL = TmpAL;
+				//and		al, 15
+				TmpAL &= 15;
+				//or al, SPACE_MASK
+				TmpAL |= SPACE_MASK;
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//shr		cl, 4
+				TmpCL >>= 4;
+				//or cl, PIX_MASK
+				TmpCL |= PIX_MASK;
+				//inc		edx
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		SH3_1
-					mov		eax, OCNTR
-					SH3_0 : add		eax, edi
-					test	al, 1
-					jz		SH3_0A
-					mov[edi], 0
-					SH3_0A : sub		eax, edi
-					inc		edi
-					dec		cl
-					jnz		SH3_0
-					SH3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					inc     OCNTR
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		SH3_1
+				if (TmpCL == 0) goto SH3_1;
+				//mov		eax, OCNTR
+				TmpEAX = OCNTR;
+			SH3_0 : 
+				//add		eax, edi
+				TmpEAX += TmpEDI;
+				//test	al, 1
+				//jz		SH3_0A
+				if ((TmpAL & 1) == 0) goto SH3_0A;
+				//mov[edi], 0   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				*reinterpret_cast<unsigned int *>(TmpEDI) = 0;
+			SH3_0A : 
+				//sub		eax, edi
+				TmpEAX -= TmpEDI;
+				//inc		edi
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		SH3_0
+				if (TmpCL != 0) goto SH3_0;
+			SH3_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//inc     OCNTR
+				OCNTR++;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -3093,166 +4729,290 @@ void GP_ShowMaskedPictOverpoint( int x, int y, GP_Header* Pic, byte* CData, byte
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 17.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					TmpEDI = LineStart;
+					//mov		al, [edx]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					//inc		edx
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		SH4_1
-						mov		eax, OCNTR
-						SH4_0 : add		eax, edi
-						test	al, 1
-						jz		SH4_0A
-						mov		byte ptr[edi], 0
-						SH4_0A : sub		eax, edi
-						inc		edi
-						dec		cl
-						jnz		SH4_0
-						SH4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						inc		OCNTR
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					ADDESI = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		SH4_1
+					if (TmpCL == 0) goto SH4_1;
+					//mov		eax, OCNTR
+					TmpEAX = OCNTR;
+				SH4_0 : 
+					//add		eax, edi
+					TmpEAX += TmpEDI;
+					//test	al, 1
+					//jz		SH4_0A
+					if ((TmpAL & 1) == 0) goto SH4_0A;
+					//mov		byte ptr[edi], 0
+					*reinterpret_cast<unsigned char *>(TmpEDI) = 0;
+				SH4_0A : 
+					//sub		eax, edi
+					TmpEAX -= TmpEDI;
+					//inc		edi
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		SH4_0
+					if (TmpCL != 0) goto SH4_0;
+				SH4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//inc		OCNTR
+					OCNTR++;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					SPACE_MASK = 0;
+					//mov		PIX_MASK, 0
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//add		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI += TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		SH5_1
-						mov		eax, OCNTR
-						SH5_0 : add		eax, edi
-						test	al, 1
-						jz		SH5_0A
-						mov		byte ptr[edi], 0
-						SH5_0A : sub		eax, edi
-						inc		edi
-						dec		cl
-						jnz		SH5_0
-						SH5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						inc		OCNTR
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		SH5_1
+					if (TmpCL == 0) goto SH5_1;
+					//mov		eax, OCNTR
+					TmpEAX = OCNTR;
+				SH5_0 : 
+					//add		eax, edi
+					TmpEAX += TmpEDI;
+					//test	al, 1
+					//jz		SH5_0A
+					if ((TmpAL & 1) == 0) goto SH5_0A;
+					//mov		byte ptr[edi], 0
+					*reinterpret_cast<unsigned char *>(TmpEDI) = 0;
+				SH5_0A : 
+					//sub		eax, edi
+					TmpEAX -= TmpEDI;
+					//inc		edi
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		SH5_0
+					if (TmpCL != 0) goto SH5_0;
+				SH5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//inc		OCNTR
+					OCNTR++;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -3264,56 +5024,101 @@ void GP_ShowMaskedPictOverpointInv( int x, int y, GP_Header* Pic, byte* CData, b
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 17.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -3335,111 +5140,186 @@ void GP_ShowMaskedPictOverpointInv( int x, int y, GP_Header* Pic, byte* CData, b
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
-			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		SH0_1
-				xor		eax, eax
-				SH0_0 : mov		al, [edi]
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		SH0_0
-				SH0_1 :
+		// BoonXRay 17.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
+			////initialisation
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			TmpEDI = LineStart;
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		SH0_1
+			if (TmpCL == 0) goto SH0_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		SH0_0 : 
+			//mov		al, [edi]
+			//mov		al, [ebx + eax]
+			//mov[edi], al
+			//dec		edi
+			//dec		cl
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI--;
+			TmpCL--;
+			//jnz		SH0_0
+			if (TmpCL != 0) goto SH0_0;
+		SH0_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		SH1_1
-				xor		eax, eax
-				SH1_0 : mov		al, [edi]
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		SH1_0
-				SH1_1 :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//sub		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI -= TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		SH1_1
+			if (TmpCL == 0) goto SH1_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		SH1_0 : 
+			//mov		al, [edi]
+			//mov		al, [ebx + eax]
+			//mov[edi], al
+			//dec		edi
+			//dec		cl
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI--;
+			TmpCL--;
+			//jnz		SH1_0
+			if (TmpCL != 0) goto SH1_0;
+		SH1_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -3455,154 +5335,266 @@ void GP_ShowMaskedPictOverpointInv( int x, int y, GP_Header* Pic, byte* CData, b
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
-				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+			// BoonXRay 18.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
+				////initialisation
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				TmpEDI = LineStart;
+				//mov		al, [edx]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				//inc		edx
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		SH2_1
-					xor		eax, eax
-					SH2_0 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		SH2_0
-					SH2_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		SH2_1
+				if (TmpCL == 0) goto SH2_1;
+				//xor		eax, eax
+				TmpEAX = 0;
+			SH2_0 : 
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				//jnz		SH2_0
+				if (TmpCL != 0) goto SH2_0;
+			SH2_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//sub		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI -= TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;	
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		SH3_1
-					xor		eax, eax
-					SH3_0 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		SH3_0
-					SH3_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		SH3_1
+				if (TmpCL == 0) goto SH3_1;
+				//xor		eax, eax
+				TmpEAX = 0;
+			SH3_0 : 
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				//jnz		SH3_0
+				if (TmpCL != 0) goto SH3_0;
+			SH3_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -3618,160 +5610,274 @@ void GP_ShowMaskedPictOverpointInv( int x, int y, GP_Header* Pic, byte* CData, b
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 18.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		SH4_1
-						xor		eax, eax
-						SH4_0 : mov		al, [edi]
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		SH4_0
-						SH4_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		SH4_1
+					if (TmpCL == 0) goto SH4_1;
+					//xor		eax, eax
+					TmpEAX = 0;
+				SH4_0 : 
+					//mov		al, [edi]
+					//mov		al, [ebx + eax]
+					//mov[edi], al
+					//dec		edi
+					//dec		cl
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI--;
+					TmpCL--;
+					//jnz		SH4_0
+					if (TmpCL != 0) goto SH4_0;
+				SH4_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//sub		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI -= TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		SH5_1
-						xor		eax, eax
-						SH5_0 : mov		al, [edi]
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		SH5_0
-						SH5_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		SH5_1
+					if (TmpCL == 0) goto SH5_1;
+					//xor		eax, eax
+					TmpEAX = 0;
+				SH5_0 : 
+					//mov		al, [edi]
+					//mov		al, [ebx + eax]
+					//mov[edi], al
+					//dec		edi
+					//dec		cl
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI--;
+					TmpCL--;
+					//jnz		SH5_0
+					if (TmpCL != 0) goto SH5_0;
+				SH5_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -3796,56 +5902,101 @@ void GP_ShowMaskedPalPict( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 18.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX + 1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -3867,109 +6018,186 @@ void GP_ShowMaskedPalPict( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 18.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		PAL0_1
-				xor		eax, eax
-				PAL0_0 : lodsb
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		PAL0_0
-				PAL0_1 :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		PAL0_1
+			if (TmpCL == 0) goto PAL0_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		PAL0_0 : 
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//stosb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		PAL0_0
+			if (TmpCL != 0) goto PAL0_0;
+		PAL0_1 :
 			//*****************************************//
 			//          end of variation zone          //
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		PAL1_1
-				xor		eax, eax
-				PAL1_0 : lodsb
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		PAL1_0
-				PAL1_1 :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//add		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI += TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		PAL1_1
+			if (TmpCL == 0) goto PAL1_1;
+			//xor		eax, eax
+			TmpEAX = 0;
+		PAL1_0 : 
+			//lodsb
+			//mov		al, [ebx + eax]
+			//stosb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		PAL1_0
+			if (TmpCL != 0) goto PAL1_0;
+		PAL1_1 :
 			//*****************************************//
 			//          end of variation zone          //
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -3985,152 +6213,266 @@ void GP_ShowMaskedPalPict( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 19.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		PAL2_1
-					xor		eax, eax
-					PAL2_0 : lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		PAL2_0
-					PAL2_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		PAL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto PAL2_1;
+				TmpEAX = 0;
+			PAL2_0 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//stosb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		PAL2_0
+				if (TmpCL != 0) goto PAL2_0;
+			PAL2_1 :
 				//*****************************************//
 				//          end of variation zone          //
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//add		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI += TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		PAL3_1
-					xor		eax, eax
-					PAL3_0 : lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		PAL3_0
-					PAL3_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		PAL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto PAL3_1;
+				TmpEAX = 0;
+			PAL3_0 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//stosb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		PAL3_0
+				if (TmpCL != 0) goto PAL3_0;
+			PAL3_1 :
 				//*****************************************//
 				//          end of variation zone          //
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -4146,158 +6488,274 @@ void GP_ShowMaskedPalPict( int x, int y, GP_Header* Pic, byte* CData, byte* Enco
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 19.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		PAL4_1
-						xor		eax, eax
-						PAL4_0 : lodsb
-						mov		al, [ebx + eax]
-						stosb
-						dec		cl
-						jnz		PAL4_0
-						PAL4_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		PAL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto PAL4_1;
+					TmpEAX = 0;
+				PAL4_0 : 
+					//lodsb
+					//mov		al, [ebx + eax]
+					//stosb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		PAL4_0
+					if (TmpCL != 0) goto PAL4_0;
+				PAL4_1 :
 					//*****************************************//
 					//          end of variation zone          //
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//add		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI += TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		PAL5_1
-						xor		eax, eax
-						PAL5_0 : lodsb
-						mov		al, [ebx + eax]
-						stosb
-						dec		cl
-						jnz		PAL5_0
-						PAL5_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		PAL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto PAL5_1;
+					TmpEAX = 0;
+				PAL5_0 : 
+					//lodsb
+					//mov		al, [ebx + eax]
+					//stosb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		PAL5_0
+					if (TmpCL != 0) goto PAL5_0;
+				PAL5_1 :
 					//*****************************************//
 					//          end of variation zone          //
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -4309,56 +6767,101 @@ void GP_ShowMaskedPalPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* E
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 19.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -4380,111 +6883,188 @@ void GP_ShowMaskedPalPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* E
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 20.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		PAL0_1
-				xor		eax, eax
-				PAL0_0 : lodsb
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		PAL0_0
-				PAL0_1 :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		PAL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto PAL0_1;
+			TmpEAX = 0;
+		PAL0_0 : 
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		PAL0_0
+			if (TmpCL != 0) goto PAL0_0;
+		PAL0_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		PAL1_1
-				xor		eax, eax
-				PAL1_0 : lodsb
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		PAL1_0
-				PAL1_1 :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//sub		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI -= TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		PAL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto PAL1_1;
+			TmpEAX = 0;
+		PAL1_0 : 
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		PAL1_0
+			if (TmpCL != 0) goto PAL1_0;
+		PAL1_1 :
 			//*****************************************//
 			//          end of variation zone          //INVERTED
 			//*****************************************//
-			dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -4500,154 +7080,268 @@ void GP_ShowMaskedPalPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* E
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 21.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		PAL2_1
-					xor		eax, eax
-					PAL2_0 : lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		PAL2_0
-					PAL2_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		PAL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto PAL2_1;
+				TmpEAX = 0;
+			PAL2_0 : 
+				//lodsb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		PAL2_0
+				if (TmpCL != 0) goto PAL2_0;
+			PAL2_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//sub		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI -= TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		PAL3_1
-					xor		eax, eax
-					PAL3_0 : lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		PAL3_0
-					PAL3_1 :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		PAL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto PAL3_1;
+				TmpEAX = 0;
+			PAL3_0 : 
+				//lodsb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		PAL3_0
+				if (TmpCL != 0) goto PAL3_0;
+			PAL3_1 :
 				//*****************************************//
 				//          end of variation zone          //INVERTED
 				//*****************************************//
-				dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -4663,160 +7357,276 @@ void GP_ShowMaskedPalPictInv( int x, int y, GP_Header* Pic, byte* CData, byte* E
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 21.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		PAL4_1
-						xor		eax, eax
-						PAL4_0 : lodsb
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		PAL4_0
-						PAL4_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		PAL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto PAL4_1;
+					TmpEAX = 0;
+				PAL4_0 : 
+					//lodsb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		PAL4_0
+					if (TmpCL != 0) goto PAL4_0;
+				PAL4_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					//mov		PIX_MASK, 16
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					TmpAL &= 31;
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//sub		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI -= TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		PAL5_1
-						xor		eax, eax
-						PAL5_0 : lodsb
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		PAL5_0
-						PAL5_1 :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		PAL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto PAL5_1;
+					TmpEAX = 0;
+				PAL5_0 : 
+					//lodsb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		PAL5_0
+					if (TmpCL != 0) goto PAL5_0;
+				PAL5_1 :
 					//*****************************************//
 					//          end of variation zone          //INVERTED
 					//*****************************************//
-					add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -4840,56 +7650,101 @@ void GP_ShowMaskedMultiPalPict( int x, int y, GP_Header* Pic, byte* CData, byte*
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 22.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -4911,113 +7766,197 @@ void GP_ShowMaskedMultiPalPict( int x, int y, GP_Header* Pic, byte* CData, byte*
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 22.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		MPL0_1
-				xor		eax, eax
-				MPL0_0 : mov		al, [edi]
-				mov		ah, [esi]
-				mov		al, [ebx + eax]
-				inc		esi
-				stosb
-				dec		cl
-				jnz		MPL0_0
-				MPL0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL0_1;
+			TmpEAX = 0;
+		MPL0_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		ah, [esi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//inc		esi
+			TmpESI++;
+			//stosb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL0_0
+			if (TmpCL != 0) goto MPL0_0;
+		MPL0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		MPL1_1
-				xor		eax, eax
-				MPL1_0 : mov		al, [edi]
-				mov		ah, [esi]
-				mov		al, [ebx + eax]
-				inc		esi
-				stosb
-				dec		cl
-				jnz		MPL1_0
-				MPL1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			//test	al, 64
+			//jz		DCL1
+			if ((TmpAL & 64) == 0) goto DCL1;
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			if ((TmpAL & 32) == 0) goto DCL2;
+			//mov		PIX_MASK, 16
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			TmpAL &= 31;
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//add		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI += TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL1_1;
+			TmpEAX = 0;
+		MPL1_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		ah, [esi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//inc		esi
+			TmpESI++;
+			//stosb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL1_0
+			if (TmpCL != 0) goto MPL1_0;
+		MPL1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -5033,156 +7972,277 @@ void GP_ShowMaskedMultiPalPict( int x, int y, GP_Header* Pic, byte* CData, byte*
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 22.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		MPL2_1
-					xor		eax, eax
-					MPL2_0 : mov		al, [edi]
-					mov		ah, [esi]
-					mov		al, [ebx + eax]
-					inc		esi
-					stosb
-					dec		cl
-					jnz		MPL2_0
-					MPL2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL2_1;
+				TmpEAX = 0;
+			MPL2_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//mov		ah, [esi]
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//inc		esi
+				TmpESI++;
+				//stosb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL2_0
+				if (TmpCL != 0) goto MPL2_0;
+			MPL2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				//mov		PIX_MASK, 16
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				TmpAL &= 31;
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//add		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI += TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		MPL3_1
-					xor		eax, eax
-					MPL3_0 : mov		al, [edi]
-					mov		ah, [esi]
-					mov		al, [ebx + eax]
-					inc		esi
-					stosb
-					dec		cl
-					jnz		MPL3_0
-					MPL3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL3_1;
+				TmpEAX = 0;
+			MPL3_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//mov		ah, [esi]
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//inc		esi
+				TmpESI++;
+				//stosb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL3_0
+				if (TmpCL != 0) goto MPL3_0;
+			MPL3_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -5198,162 +8258,285 @@ void GP_ShowMaskedMultiPalPict( int x, int y, GP_Header* Pic, byte* CData, byte*
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 22.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if(TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		MPL4_1
-						xor		eax, eax
-						MPL4_0 : mov		al, [edi]
-						mov		ah, [esi]
-						mov		al, [ebx + eax]
-						inc		esi
-						stosb
-						dec		cl
-						jnz		MPL4_0
-						MPL4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL4_1;
+					TmpEAX = 0;
+				MPL4_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//mov		ah, [esi]
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//inc		esi
+					TmpESI++;
+					//stosb
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL4_0
+					if (TmpCL != 0) goto MPL4_0;
+				MPL4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					//mov		PIX_MASK, 16
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					TmpAL &= 31;
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//add		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI += TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		MPL5_1
-						xor		eax, eax
-						MPL5_0 : mov		al, [edi]
-						mov		ah, [esi]
-						mov		al, [ebx + eax]
-						inc		esi
-						stosb
-						dec		cl
-						jnz		MPL5_0
-						MPL5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL5_1;
+					TmpEAX = 0;
+				MPL5_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//mov		ah, [esi]
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//inc		esi
+					TmpESI++;
+					//stosb
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL5_0
+					if (TmpCL != 0) goto MPL5_0;
+				MPL5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -5365,56 +8548,101 @@ void GP_ShowMaskedMultiPalPictInv( int x, int y, GP_Header* Pic, byte* CData, by
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 22.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -5436,115 +8664,199 @@ void GP_ShowMaskedMultiPalPictInv( int x, int y, GP_Header* Pic, byte* CData, by
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 22.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		MPL0_1
-				xor		eax, eax
-				MPL0_0 : mov		al, [edi]
-				mov		ah, [esi]
-				mov		al, [ebx + eax]
-				inc		esi
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		MPL0_0
-				MPL0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //INVERTED
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL0_1;
+			TmpEAX = 0;
+		MPL0_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		ah, [esi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//inc		esi
+			TmpESI++;
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL0_0
+			if (TmpCL != 0) goto MPL0_0;
+		MPL0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //INVERTED
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		MPL1_1
-				xor		eax, eax
-				MPL1_0 : mov		al, [edi]
-				mov		ah, [esi]
-				mov		al, [ebx + eax]
-				inc		esi
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		MPL1_0
-				MPL1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //INVERTED
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			//test	al, 64
+			//jz		DCL1
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			if ((TmpAL & 64) == 0) goto DCL1;
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			//mov		PIX_MASK, 16
+			if ((TmpAL & 32) == 0) goto DCL2;
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			TmpAL &= 31;
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//sub		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI -= TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL1_1;
+			TmpEAX = 0;
+		MPL1_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//mov		ah, [esi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//inc		esi
+			TmpESI++;
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL1_0
+			if (TmpCL != 0) goto MPL1_0;
+		MPL1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //INVERTED
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -5560,158 +8872,279 @@ void GP_ShowMaskedMultiPalPictInv( int x, int y, GP_Header* Pic, byte* CData, by
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 22.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		MPL2_1
-					xor		eax, eax
-					MPL2_0 : mov		al, [edi]
-					mov		ah, [esi]
-					mov		al, [ebx + eax]
-					inc		esi
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		MPL2_0
-					MPL2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //INVERTED
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL2_1;
+				TmpEAX = 0;
+			MPL2_0 : 
+				//mov		al, [edi]
+				//mov		ah, [esi]
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//inc		esi
+				TmpESI++;
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL2_0
+				if (TmpCL != 0) goto MPL2_0;
+			MPL2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //INVERTED
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				//mov		PIX_MASK, 16
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				TmpAL &= 31;
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//sub		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				//sub		CURCLIP, eax
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI -= TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		MPL3_1
-					xor		eax, eax
-					MPL3_0 : mov		al, [edi]
-					mov		ah, [esi]
-					mov		al, [ebx + eax]
-					inc		esi
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		MPL3_0
-					MPL3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //INVERTED
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL3_1;
+				TmpEAX = 0;
+			MPL3_0 : 
+				//mov		al, [edi]
+				//mov		ah, [esi]
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//inc		esi
+				TmpESI++;
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL3_0
+				if (TmpCL != 0) goto MPL3_0;
+			MPL3_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //INVERTED
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -5727,164 +9160,287 @@ void GP_ShowMaskedMultiPalPictInv( int x, int y, GP_Header* Pic, byte* CData, by
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 23.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					//mov		TEMP1, eax
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		MPL4_1
-						xor		eax, eax
-						MPL4_0 : mov		al, [edi]
-						mov		ah, [esi]
-						mov		al, [ebx + eax]
-						inc		esi
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		MPL4_0
-						MPL4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //INVERTED
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL4_1;
+					TmpEAX = 0;
+				MPL4_0 : 
+					//mov		al, [edi]
+					//mov		ah, [esi]
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//inc		esi
+					TmpESI++;
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL4_0
+					if (TmpCL != 0) goto MPL4_0;
+				MPL4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //INVERTED
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					//mov		PIX_MASK, 16
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					TmpAL &= 31;
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//sub		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					//sub		CURCLIP, eax
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI -= TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		MPL5_1
-						xor		eax, eax
-						MPL5_0 : mov		al, [edi]
-						mov		ah, [esi]
-						mov		al, [ebx + eax]
-						inc		esi
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		MPL5_0
-						MPL5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //INVERTED
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL5_1;
+					TmpEAX = 0;
+				MPL5_0 : 
+					//mov		al, [edi]
+					//mov		ah, [esi]
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//inc		esi
+					TmpESI++;
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL5_0
+					if (TmpCL != 0) goto MPL5_0;
+				MPL5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //INVERTED
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -5908,56 +9464,101 @@ void GP_ShowMaskedMultiPalTPict( int x, int y, GP_Header* Pic, byte* CData, byte
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 23.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			TmpAL &= 31;
+			//or al, al
+			//jz		COMPLINE_1
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -5979,111 +9580,195 @@ void GP_ShowMaskedMultiPalTPict( int x, int y, GP_Header* Pic, byte* CData, byte
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 23.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		MPL0_1
-				xor		eax, eax
-				MPL0_0 : mov		ah, [edi]
-				lodsb
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		MPL0_0
-				MPL0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL0_1;
+			TmpEAX = 0;
+		MPL0_0 : 
+			//mov		ah, [edi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//stosb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL0_0
+			if (TmpCL != 0) goto MPL0_0;
+		MPL0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		MPL1_1
-				xor		eax, eax
-				MPL1_0 : mov		ah, [edi]
-				lodsb
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		MPL1_0
-				MPL1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			//test	al, 64
+			//jz		DCL1
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			if ((TmpAL & 64) == 0) goto DCL1;
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			//mov		PIX_MASK, 16
+			if ((TmpAL & 32) == 0) goto DCL2;
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			TmpAL &= 31;
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//add		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI += TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL1_1;
+			TmpEAX = 0;
+		MPL1_0 : 
+			//mov		ah, [edi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//stosb
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL1_0
+			if (TmpCL != 0) goto MPL1_0;
+		MPL1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -6099,154 +9784,275 @@ void GP_ShowMaskedMultiPalTPict( int x, int y, GP_Header* Pic, byte* CData, byte
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 23.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		MPL2_1
-					xor		eax, eax
-					MPL2_0 : mov		ah, [edi]
-					lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		MPL2_0
-					MPL2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL2_1;
+				TmpEAX = 0;
+			MPL2_0 : 
+				//mov		ah, [edi]
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//lodsb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//stosb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL2_0
+				if (TmpCL != 0) goto MPL2_0;
+			MPL2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				//mov		PIX_MASK, 16
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				TmpAL &= 31;
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//add		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				//sub		CURCLIP, eax
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI += TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		MPL3_1
-					xor		eax, eax
-					MPL3_0 : mov		ah, [edi]
-					lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		MPL3_0
-					MPL3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL3_1;
+				TmpEAX = 0;
+			MPL3_0 : 
+				//mov		ah, [edi]
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//lodsb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//stosb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL3_0
+				if (TmpCL != 0) goto MPL3_0;
+			MPL3_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -6262,160 +10068,283 @@ void GP_ShowMaskedMultiPalTPict( int x, int y, GP_Header* Pic, byte* CData, byte
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 23.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		MPL4_1
-						xor		eax, eax
-						MPL4_0 : mov		ah, [edi]
-						lodsb
-						mov		al, [ebx + eax]
-						stosb
-						dec		cl
-						jnz		MPL4_0
-						MPL4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL4_1;
+					TmpEAX = 0;
+				MPL4_0 : 
+					//mov		ah, [edi]
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//lodsb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//stosb
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL4_0
+					if (TmpCL != 0) goto MPL4_0;
+				MPL4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					//mov		PIX_MASK, 16
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					TmpAL &= 31;
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//add		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					//sub		CURCLIP, eax
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI += TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		MPL5_1
-						xor		eax, eax
-						MPL5_0 : mov		ah, [edi]
-						lodsb
-						mov		al, [ebx + eax]
-						stosb
-						dec		cl
-						jnz		MPL5_0
-						MPL5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL5_1;
+					TmpEAX = 0;
+				MPL5_0 : 
+					//mov		ah, [edi]
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//lodsb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//stosb
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					TmpEDI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL5_0
+					if (TmpCL != 0) goto MPL5_0;
+				MPL5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -6428,56 +10357,101 @@ void GP_ShowMaskedMultiPalTPictInv( int x, int y, GP_Header* Pic, byte* CData, b
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 23.07.2017
+		//__asm
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			//or al, al
+			//jz		COMPLINE_1
+			TmpAL &= 31;
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -6499,113 +10473,197 @@ void GP_ShowMaskedMultiPalTPictInv( int x, int y, GP_Header* Pic, byte* CData, b
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 23.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, Encoder			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE : test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		MPL0_1
-				xor		eax, eax
-				MPL0_0 : mov		ah, [edi]
-				lodsb
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		MPL0_0
-				MPL0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //INVERTED
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, Encoder			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE : 
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL0_1;
+			TmpEAX = 0;
+		MPL0_0 : 
+			//mov		ah, [edi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL0_0
+			if (TmpCL != 0) goto MPL0_0;
+		MPL0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //INVERTED
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		MPL1_1
-				xor		eax, eax
-				MPL1_0 : mov		ah, [edi]
-				lodsb
-				mov		al, [ebx + eax]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		MPL1_0
-				MPL1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //INVERTED
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			//test	al, 64
+			//jz		DCL1
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			if ((TmpAL & 64) == 0) goto DCL1;
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			//mov		PIX_MASK, 16
+			if ((TmpAL & 32) == 0) goto DCL2;
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			TmpAL &= 31;
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//sub		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI -= TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL1_1;
+			TmpEAX = 0;
+		MPL1_0 : 
+			//mov		ah, [edi]
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//lodsb
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			//mov		al, [ebx + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL1_0
+			if (TmpCL != 0) goto MPL1_0;
+		MPL1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //INVERTED
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -6621,156 +10679,277 @@ void GP_ShowMaskedMultiPalTPictInv( int x, int y, GP_Header* Pic, byte* CData, b
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 23.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, Encoder			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, Encoder			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		MPL2_1
-					xor		eax, eax
-					MPL2_0 : mov		ah, [edi]
-					lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		MPL2_0
-					MPL2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //INVERTED
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL2_1;
+				TmpEAX = 0;
+			MPL2_0 : 
+				//mov		ah, [edi]
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//lodsb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL2_0
+				if (TmpCL != 0) goto MPL2_0;
+			MPL2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //INVERTED
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				//mov		PIX_MASK, 16
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				TmpAL &= 31;
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//sub		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				//sub		CURCLIP, eax
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI -= TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		MPL3_1
-					xor		eax, eax
-					MPL3_0 : mov		ah, [edi]
-					lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		MPL3_0
-					MPL3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //INVERTED
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL3_1;
+				TmpEAX = 0;
+			MPL3_0 : 
+				//mov		ah, [edi]
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//lodsb
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				//mov		al, [ebx + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL3_0
+				if (TmpCL != 0) goto MPL3_0;
+			MPL3_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //INVERTED
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -6786,162 +10965,285 @@ void GP_ShowMaskedMultiPalTPictInv( int x, int y, GP_Header* Pic, byte* CData, b
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 23.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, Encoder			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, Encoder			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(Encoder);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		MPL4_1
-						xor		eax, eax
-						MPL4_0 : mov		ah, [edi]
-						lodsb
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		MPL4_0
-						MPL4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //INVERTED
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL4_1;
+					TmpEAX = 0;
+				MPL4_0 : 
+					//mov		ah, [edi]
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//lodsb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL4_0
+					if (TmpCL != 0) goto MPL4_0;
+				MPL4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //INVERTED
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					//mov		PIX_MASK, 16
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					TmpAL &= 31;
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//sub		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					//sub		CURCLIP, eax
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI -= TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		MPL5_1
-						xor		eax, eax
-						MPL5_0 : mov		ah, [edi]
-						lodsb
-						mov		al, [ebx + eax]
-						mov[edi], al
-						dec		edi
-						dec		cl
-						jnz		MPL5_0
-						MPL5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //INVERTED
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL5_1;
+					TmpEAX = 0;
+				MPL5_0 : 
+					//mov		ah, [edi]
+					TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//lodsb
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					TmpESI++;
+					//mov		al, [ebx + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL5_0
+					if (TmpCL != 0) goto MPL5_0;
+				MPL5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //INVERTED
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -6966,7 +11268,9 @@ void GP_ShowMaskedMirrorPict( int x, int y, GP_Header* Pic, byte* CData, int* WS
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 
 	if (y + NLines <= WindY || x + Lx <= WindX || x > WindX1 || y > WindY1)
 		return;
@@ -6976,50 +11280,92 @@ void GP_ShowMaskedMirrorPict( int x, int y, GP_Header* Pic, byte* CData, int* WS
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 24.07.2017
+		//__asm
 		{
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			//or al, al
+			//jz		COMPLINE_1
+			TmpAL &= 31;
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -7041,128 +11387,220 @@ void GP_ShowMaskedMirrorPict( int x, int y, GP_Header* Pic, byte* CData, int* WS
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 26.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, WSHIFT			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, [ebx]
-				add		ebx, 4
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE :
-			test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				add		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		MPL0_1
-				xor		eax, eax
-				MPL0_0 : mov		al, [edi]
-				sub		al, 0xB0
-				cmp		al, 0xB
-				jae		MPL0_0A
-				mov		ah, al
-				mov		al, [esi]
-				mov		al, [refl + eax]
-				mov[edi], al
-				MPL0_0A : inc edi
-				inc		esi
-				dec		cl
-				jnz		MPL0_0
-				MPL0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, WSHIFT			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(WSHIFT);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, [ebx]
+			TmpEDI += *reinterpret_cast<unsigned int *>(TmpEBX);
+			//add		ebx, 4
+			TmpEBX += 4;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE :
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			//mov		TEMP1, eax
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//add		edi, eax
+			TmpEDI += TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL0_1;
+			TmpEAX = 0;
+		MPL0_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//sub		al, 0xB0
+			TmpAL -= 0xB0;
+			//cmp		al, 0xB
+			//jae		MPL0_0A
+			if (TmpAL >= 0x0Bu) goto MPL0_0A;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//mov		al, [esi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [refl + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		MPL0_0A : 
+			//inc edi
+			TmpEDI++;
+			//inc		esi
+			TmpESI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL0_0
+			if (TmpCL != 0) goto MPL0_0;
+		MPL0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				add		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//
-				//*****************************************//
-				or cl, cl
-				jz		MPL1_1
-				xor		eax, eax
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			//test	al, 64
+			//jz		DCL1
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			if ((TmpAL & 64) == 0) goto DCL1;
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			//mov		PIX_MASK, 16
+			if ((TmpAL & 32) == 0) goto DCL2;
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			TmpAL &= 31;
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//add		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI += TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL1_1;
+			TmpEAX = 0;
+		MPL1_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//sub		al, 0xB0
+			TmpAL -= 0xB0;
+			//cmp		al, 0xB
+			//jae		MPL1_0A
+			if (TmpAL >= 0x0Bu) goto MPL1_0A;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//mov		al, [esi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [refl + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		MPL1_0A : 
+			//inc edi
+			TmpEDI++;
+			//inc		esi
+			TmpESI++;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL1_0
+			if (TmpCL != 0) goto MPL1_0;
 
-				MPL1_0 : mov		al, [edi]
-				sub		al, 0xB0
-				cmp		al, 0xB
-				jae		MPL1_0A
-				mov		ah, al
-				mov		al, [esi]
-				mov		al, [refl + eax]
-				mov[edi], al
-				MPL1_0A : inc edi
-				inc		esi
-				dec		cl
-				jnz		MPL1_0
-
-				MPL1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+		MPL1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -7178,172 +11616,304 @@ void GP_ShowMaskedMirrorPict( int x, int y, GP_Header* Pic, byte* CData, int* WS
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = WindX - x;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 26.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, WSHIFT			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					add		edi, [ebx]
-					xchg	CLIP, edx
-					add		edi, ScrWidth
-					sub		edx, [ebx]
-					add		ebx, 4
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE : test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					add		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, WSHIFT			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(WSHIFT);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//add		edi, [ebx]
+				TmpEDI += *reinterpret_cast<unsigned int *>(TmpEBX);
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//sub		edx, [ebx]
+				TmpEDX -= *reinterpret_cast<unsigned int *>(TmpEBX);
+				//add		ebx, 4
+				TmpEBX += 4;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE : 
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		MPL2_1
-					xor		eax, eax
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL2_1;
+				TmpEAX = 0;
 
-					MPL2_0 : mov		al, [edi]
-					sub		al, 0xB0
-					cmp		al, 12
-					jae		MPL2_0A
-					mov		ah, al
-					mov		al, [esi]
-					mov		al, [refl + eax]
-					mov[edi], al
-					MPL2_0A : inc edi
-					inc		esi
-					dec		cl
-					jnz		MPL2_0
-					MPL2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+			MPL2_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//sub		al, 0xB0
+				TmpAL -= 0xB0;
+				//cmp		al, 12
+				//jae		MPL2_0A
+				if (TmpAL >= 12u) goto MPL2_0A;
+				//mov		ah, al
+				TmpAH = TmpAL;
+				//mov		al, [esi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				//mov		al, [refl + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			MPL2_0A : 
+				//inc edi
+				TmpEDI++;
+				//inc		esi
+				TmpESI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL2_0
+				if (TmpCL != 0) goto MPL2_0;
+			MPL2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					add		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					add		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				//mov		PIX_MASK, 16
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				TmpAL &= 31;
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//add		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				//sub		CURCLIP, eax
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI += TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					add		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//
-					//*****************************************//
-					or cl, cl
-					jz		MPL3_1
-					xor		eax, eax
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//add		edi, CURCLIP
+				TmpEDI += CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL3_1;
+				TmpEAX = 0;
 
-					MPL3_0 : mov		al, [edi]
-					sub		al, 0xB0
-					cmp		al, 12
-					jae		MPL3_0A
-					mov		ah, al
-					mov		al, [esi]
-					mov		al, [refl + eax]
-					mov[edi], al
-					MPL3_0A : inc edi
-					inc		esi
-					dec		cl
-					jnz		MPL3_0
+			MPL3_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//sub		al, 0xB0
+				TmpAL -= 0xB0;
+				//cmp		al, 12
+				//jae		MPL3_0A
+				if (TmpAL >= 12u) goto MPL3_0A;
+				//mov		ah, al
+				TmpAH = TmpAL;
+				//mov		al, [esi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				//mov		al, [refl + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			MPL3_0A : 
+				//inc edi
+				TmpEDI++;
+				//inc		esi
+				TmpESI++;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL3_0
+				if (TmpCL != 0) goto MPL3_0;
 
-					MPL3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+			MPL3_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -7359,180 +11929,314 @@ void GP_ShowMaskedMirrorPict( int x, int y, GP_Header* Pic, byte* CData, int* WS
 				//****************************************************************//
 				CLIP = WindX1 - x + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 26.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, WSHIFT			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						mov		ADDESI, 0
-						add		edi, [ebx]
-						xchg	CLIP, edx
-						sub		edx, [ebx]
-						add		ebx, 4
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						add		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, WSHIFT			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(WSHIFT);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//add		edi, [ebx]
+					TmpEDI += *reinterpret_cast<unsigned int *>(TmpEBX);
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//sub		edx, [ebx]
+					TmpEDX -= *reinterpret_cast<unsigned int *>(TmpEBX);
+					//add		ebx, 4
+					TmpEBX += 4;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					LineStart = TmpEDI;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//add		edi, eax
+					TmpEDI += TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		MPL4_1
-						xor		eax, eax
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL4_1;
+					TmpEAX = 0;
 
-						MPL4_0 : mov		al, [edi]
-						sub		al, 0xB0
-						cmp		al, 12
-						jae		MPL4_0A
-						mov		ah, al
-						mov		al, [esi]
-						mov		al, [refl + eax]
-						mov[edi], al
-						MPL4_0A : inc edi
-						inc		esi
-						dec		cl
-						jnz		MPL4_0
+				MPL4_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//sub		al, 0xB0
+					TmpAL -= 0xB0u;
+					//cmp		al, 12
+					//jae		MPL4_0A
+					if (TmpAL >= 12u) goto MPL4_0A;
+					//mov		ah, al
+					TmpAH = TmpAL;
+					//mov		al, [esi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					//mov		al, [refl + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				MPL4_0A : 
+					//inc edi
+					TmpEDI++;
+					//inc		esi
+					TmpESI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL4_0
+					if (TmpCL != 0) goto MPL4_0;
 
-						MPL4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+				MPL4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						add		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					//mov		PIX_MASK, 16
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					TmpAL &= 31;
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//add		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					//sub		CURCLIP, eax
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI += TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//
-						//*****************************************//
-						or cl, cl
-						jz		MPL5_1
-						xor		eax, eax
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL5_1;
+					TmpEAX = 0;
 
-						MPL5_0 : mov		al, [edi]
-						sub		al, 0xB0
-						cmp		al, 12
-						jae		MPL5_0A
-						mov		ah, al
-						mov		al, [esi]
-						mov		al, [refl + eax]
-						mov[edi], al
-						MPL5_0A : inc edi
-						inc		esi
-						dec		cl
-						jnz		MPL5_0
+				MPL5_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//sub		al, 0xB0
+					TmpAL -= 0xB0u;
+					//cmp		al, 12
+					//jae		MPL5_0A
+					if (TmpAL >= 12u) goto MPL5_0A;
+					//mov		ah, al
+					TmpAH = TmpAL;
+					//mov		al, [esi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					//mov		al, [refl + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				MPL5_0A : 
+					//inc edi
+					TmpEDI++;
+					//inc		esi
+					TmpESI++;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL5_0
+					if (TmpCL != 0) goto MPL5_0;
 
-						jnz		MPL5_0
-						MPL5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//jnz		MPL5_0
+				MPL5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -7544,56 +12248,101 @@ void GP_ShowMaskedMirrorPictInv( int x, int y, GP_Header* Pic, byte* CData, int*
 	y += Pic->dy;
 	int Lx = Pic->Lx;
 	int NLines = Pic->NLines;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	if (y + NLines <= WindY || x - Lx >= WindX1 || x<WindX || y>WindY1)return;
 	//vertical clipping
 	//top clipper
 	int CDPOS = int( CData );
 	if (y < WindY)
 	{
-		__asm {
-			mov		ecx, WindY
-			sub		ecx, y
-			sub		NLines, ecx
-			add		y, ecx
-			mov		ebx, ofst
-			xor		eax, eax
-			xor		edx, edx
-			NLINE : mov		al, [ebx]
-					test	al, 128
-					jz		SIMPLE_LINE
-					inc		ebx
-					mov		ah, al
-					and		al, 31
-					or al, al
-					jz		COMPLINE_1
-					and		ah, 32
-					shr		ah, 1
-					COMPLINE_LOOP1:
-			mov		dl, [ebx]
-				shr		dl, 4
-				or dl, ah
-				add		CDPOS, edx
-				inc		ebx
-				dec		al
-				jnz		COMPLINE_LOOP1
-				COMPLINE_1 :
-			xor		eax, eax
-				dec		ecx
-				jnz		NLINE
-				jmp		END_VCLIP
-				SIMPLE_LINE : inc		ebx
-				or eax, eax
-				jz		SIMPLINE_1
-				SIMPLINE_LOOP1 :
-			mov		dl, [ebx + 1]
-				add		CDPOS, edx
-				add		ebx, 2
-				dec		al
-				jnz		SIMPLINE_LOOP1
-				SIMPLINE_1 : dec		ecx
-				jnz		NLINE
-				END_VCLIP : mov		ofst, ebx
+		// BoonXRay 27.07.2017
+		//__asm 
+		{
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			//sub		NLines, ecx
+			NLines -= TmpECX;
+			//add		y, ecx
+			y += TmpECX;
+			//mov		ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor		eax, eax
+			//xor		edx, edx
+			unsigned int TmpEAX = 0, TmpEDX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+		NLINE : 
+			//mov		al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//test	al, 128
+			//jz		SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//inc		ebx
+			TmpEBX++;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//and		al, 31
+			//or al, al
+			//jz		COMPLINE_1
+			TmpAL &= 31;
+			if (TmpAL == 0) goto COMPLINE_1;
+			//and		ah, 32
+			TmpAH &= 32;
+			//shr		ah, 1
+			TmpAH >>= 1;
+		COMPLINE_LOOP1:
+			//mov		dl, [ebx]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//shr		dl, 4
+			TmpDL >>= 4;
+			//or dl, ah
+			TmpDL |= TmpAH;
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//inc		ebx
+			TmpEBX++;
+			//dec		al
+			TmpAL--;
+			//jnz		COMPLINE_LOOP1
+			if (TmpAL != 0) goto COMPLINE_LOOP1;
+		COMPLINE_1 :
+			//xor		eax, eax
+			TmpEAX = 0;
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+			//jmp		END_VCLIP
+			goto END_VCLIP;
+		SIMPLE_LINE : 
+			//inc		ebx
+			TmpEBX++;
+			//or eax, eax
+			//jz		SIMPLINE_1
+			if (TmpEAX == 0) goto SIMPLINE_1;
+		SIMPLINE_LOOP1 :
+			//mov		dl, [ebx + 1]
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpEBX+1);
+			//add		CDPOS, edx
+			CDPOS += TmpEDX;
+			//add		ebx, 2
+			TmpEBX += 2;
+			//dec		al
+			TmpAL--;
+			//jnz		SIMPLINE_LOOP1
+			if (TmpAL != 0) goto SIMPLINE_LOOP1;
+		SIMPLINE_1 : 
+			//dec		ecx
+			TmpECX--;
+			//jnz		NLINE
+			if (TmpECX != 0) goto NLINE;
+		END_VCLIP : 
+			//mov		ofst, ebx
+			ofst = TmpEBX;
 		};
 	};
 	//bottom clipper
@@ -7615,128 +12364,221 @@ void GP_ShowMaskedMirrorPictInv( int x, int y, GP_Header* Pic, byte* CData, int*
 		//******************(((((((((((())))))))))))*****************//
 		//***********************************************************//
 				//no clipping
-		__asm {
-			pushf
-			push	esi
-			push	edi
+		// BoonXRay 27.07.2017
+		//__asm 
+		{
+			//pushf
+			//push	esi
+			//push	edi
 			//initialisation
-			mov		edi, scrofs			//edi-screen pointer
-			mov		esi, CDPOS			//esi-points array
-			mov		ebx, WSHIFT			//ebx-encoding pointer
-			mov		edx, ofst			//edx-mask offset
-			xor		eax, eax
-			xor		ecx, ecx
-			cld
-			sub		edi, ScrWidth
-			mov		LineStart, edi
-			START_SCANLINE :
-			mov		edi, LineStart
-				mov		al, [edx]
-				inc		edx
-				add		edi, [ebx]
-				add		ebx, 4
-				add		edi, ScrWidth
-				or al, al
-				mov		LineStart, edi
-				jnz		DRAW_LINE
-				dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_LINE :
-			test	al, 128
-				jnz		DRAW_COMPLEX_LINE
-				//drawing simple line
-				or al, al
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_SIMPLE_SEGMENT :
-			mov		al, [edx]	//empty space
-				sub		edi, eax
-				mov		cl, [edx + 1]
-				add		edx, 2
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		MPL0_1
-				xor		eax, eax
-				MPL0_0 : mov		al, [edi]
-				sub		al, 0xB0
-				cmp		al, 0x0B
-				ja		MPL0_0A
-				mov		ah, al
-				mov		al, [esi]
-				mov		al, [refl + eax]
-				mov[edi], al
-				MPL0_0A : inc		esi
-				dec		edi
-				dec		cl
-				jnz		MPL0_0
-				MPL0_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //INVERTED
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_SIMPLE_SEGMENT
-				NEXT_SEGMENT :
-			dec		NLines
-				jnz		START_SCANLINE
-				jmp		END_DRAW_PICTURE
-				DRAW_COMPLEX_LINE :
+			//mov		edi, scrofs			//edi-screen pointer
+			//mov		esi, CDPOS			//esi-points array
+			//mov		ebx, WSHIFT			//ebx-encoding pointer
+			//mov		edx, ofst			//edx-mask offset
+			//xor		eax, eax
+			//xor		ecx, ecx
+			//cld
+			//sub		edi, ScrWidth
+			//mov		LineStart, edi
+			unsigned int TmpEDI = scrofs;			//edi-screen pointer
+			unsigned int TmpESI = CDPOS;			//esi-points array
+			unsigned int TmpEBX = reinterpret_cast<unsigned int>(WSHIFT);		//ebx-encoding pointer
+			unsigned int TmpEDX = ofst;			//edx-mask offset
+			unsigned int TmpEAX = 0, TmpECX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			TmpEDI -= ScrWidth;
+			LineStart = TmpEDI;
+		START_SCANLINE :
+			//mov		edi, LineStart
+			//mov		al, [edx]
+			//inc		edx
+			TmpEDI = LineStart;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			//add		edi, [ebx]
+			TmpEDI+= *reinterpret_cast<unsigned int *>(TmpEBX);
+			//add		ebx, 4
+			TmpEBX += 4;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//or al, al
+			//mov		LineStart, edi
+			//jnz		DRAW_LINE
+			LineStart = TmpEDI;
+			if (TmpAL != 0) goto DRAW_LINE;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_LINE :
+			//test	al, 128
+			//jnz		DRAW_COMPLEX_LINE
+			if ((TmpAL & 128) != 0) goto DRAW_COMPLEX_LINE;
+			//drawing simple line
+			//or al, al
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_SIMPLE_SEGMENT :
+			//mov		al, [edx]	//empty space
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+			//sub		edi, eax
+			TmpEDI -= TmpEAX;
+			//mov		cl, [edx + 1]
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, 2
+			TmpEDX += 2;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL0_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL0_1;
+			TmpEAX = 0;
+		MPL0_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//sub		al, 0xB0
+			TmpAL -= 0xB0u;
+			//cmp		al, 0x0B
+			//ja		MPL0_0A
+			if (TmpAL > 0x0Bu) goto MPL0_0A;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//mov		al, [esi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [refl + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		MPL0_0A : 
+			//inc		esi
+			TmpESI++;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL0_0
+			if (TmpCL != 0) goto MPL0_0;
+		MPL0_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //INVERTED
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_SIMPLE_SEGMENT
+			if (TEMP1 != 0) goto START_SIMPLE_SEGMENT;
+		NEXT_SEGMENT :
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+			//jmp		END_DRAW_PICTURE
+			goto END_DRAW_PICTURE;
+		DRAW_COMPLEX_LINE :
 			//complex packed line
-			mov		SPACE_MASK, 0
-				mov		PIX_MASK, 0
-				test	al, 64
-				jz		DCL1
-				mov		SPACE_MASK, 16
-				DCL1:		test	al, 32
-				jz		DCL2
-				mov		PIX_MASK, 16
-				DCL2 : and		al, 31
-				jz		NEXT_SEGMENT
-				mov		TEMP1, eax
-				START_COMPLEX_SEGMENT :
-			mov		al, [edx]
-				mov		cl, al
-				and		al, 15
-				or al, SPACE_MASK
-				sub		edi, eax
-				shr		cl, 4
-				or cl, PIX_MASK
-				inc		edx
-				//*****************************************//
-				//put various code with encoding&loop there//INVERTED
-				//*****************************************//
-				or cl, cl
-				jz		MPL1_1
-				xor		eax, eax
+			//mov		SPACE_MASK, 0
+			//mov		PIX_MASK, 0
+			//test	al, 64
+			//jz		DCL1
+			//mov		SPACE_MASK, 16
+			SPACE_MASK = 0;
+			PIX_MASK = 0;
+			if ((TmpAL & 64) == 0) goto DCL1;
+			SPACE_MASK = 16;
+		DCL1:		
+			//test	al, 32
+			//jz		DCL2
+			//mov		PIX_MASK, 16
+			if ((TmpAL & 32) == 0) goto DCL2;
+			PIX_MASK = 16;
+		DCL2 : 
+			//and		al, 31
+			//jz		NEXT_SEGMENT
+			//mov		TEMP1, eax
+			TmpAL &= 31;
+			if (TmpAL == 0) goto NEXT_SEGMENT;
+			TEMP1 = TmpEAX;
+		START_COMPLEX_SEGMENT :
+			//mov		al, [edx]
+			//mov		cl, al
+			//and		al, 15
+			//or al, SPACE_MASK
+			//sub		edi, eax
+			//shr		cl, 4
+			//or cl, PIX_MASK
+			//inc		edx
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpCL = TmpAL;
+			TmpAL &= 15;
+			TmpAL |= SPACE_MASK;
+			TmpEDI -= TmpEAX;
+			TmpCL >>= 4;
+			TmpCL |= PIX_MASK;
+			TmpEDX++;
+			//*****************************************//
+			//put various code with encoding&loop there//INVERTED
+			//*****************************************//
+			//or cl, cl
+			//jz		MPL1_1
+			//xor		eax, eax
+			if (TmpCL == 0) goto MPL1_1;
+			TmpEAX = 0;
 
-				MPL1_0 : mov		al, [edi]
-				sub		al, 0xB0
-				cmp		al, 0x0B
-				ja		MPL1_0A
-				mov		ah, al
-				mov		al, [esi]
-				mov		al, [refl + eax]
-				mov[edi], al
-				MPL1_0A : inc		esi
-				dec		edi
-				dec		cl
-				jnz		MPL1_0
+		MPL1_0 : 
+			//mov		al, [edi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			//sub		al, 0xB0
+			TmpAL -= 0xB0u;
+			//cmp		al, 0x0B
+			//ja		MPL1_0A
+			if (TmpAL > 0x0Bu) goto MPL1_0A;
+			//mov		ah, al
+			TmpAH = TmpAL;
+			//mov		al, [esi]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			//mov		al, [refl + eax]
+			TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+			//mov[edi], al
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		MPL1_0A : 
+			//inc		esi
+			TmpESI++;
+			//dec		edi
+			TmpEDI--;
+			//dec		cl
+			TmpCL--;
+			//jnz		MPL1_0
+			if (TmpCL != 0) goto MPL1_0;
 
-				MPL1_1 : xor		eax, eax
-				//*****************************************//
-				//          end of variation zone          //INVERTED
-				//*****************************************//
-				dec		TEMP1
-				jnz		START_COMPLEX_SEGMENT
-				dec		NLines
-				jnz		START_SCANLINE
-				END_DRAW_PICTURE :
+		MPL1_1 : 
+			//xor		eax, eax
+			TmpEAX = 0;
+			//*****************************************//
+			//          end of variation zone          //INVERTED
+			//*****************************************//
+			//dec		TEMP1
+			TEMP1--;
+			//jnz		START_COMPLEX_SEGMENT
+			if (TEMP1 != 0) goto START_COMPLEX_SEGMENT;
+			//dec		NLines
+			NLines--;
+			//jnz		START_SCANLINE
+			if (NLines != 0) goto START_SCANLINE;
+		END_DRAW_PICTURE :
 			//end code
-			pop		edi
-				pop		esi
-				popf
+			//pop		edi
+			//pop		esi
+			//popf
+			;
 		};
 	}
 	else
@@ -7752,170 +12594,300 @@ void GP_ShowMaskedMirrorPictInv( int x, int y, GP_Header* Pic, byte* CData, int*
 			//****************************************************************//
 			//****************************************************************//
 			CLIP = x - WindX1;
-			__asm {
-				pushf
-				push	esi
-				push	edi
+			// BoonXRay 27.07.2017
+			//__asm 
+			{
+				//pushf
+				//push	esi
+				//push	edi
 				//initialisation
-				mov		edi, scrofs			//edi-screen pointer
-				mov		esi, CDPOS			//esi-points array
-				mov		ebx, WSHIFT			//ebx-encoding pointer
-				mov		edx, ofst			//edx-mask offset
-				xor		eax, eax
-				xor		ecx, ecx
-				cld
-				sub		edi, ScrWidth
-				mov		LineStart, edi
-				CLIPLEFT_START_SCANLINE :
-				mov		edi, LineStart
-					mov		al, [edx]
-					inc		edx
-					add		edi, [ebx]
-					xchg	CLIP, edx
-					add		edx, [ebx]
-					add		ebx, 4
-					add		edi, ScrWidth
-					mov		CURCLIP, edx
-					or al, al
-					xchg	CLIP, edx
-					mov		LineStart, edi
-					jnz		CLIPLEFT_DRAW_LINE
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_LINE :
-				test	al, 128
-					jnz		CLIPLEFT_DRAW_COMPLEX_LINE
-					//drawing simple line
-					or al, al
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_SIMPLE_SEGMENT :
-				mov		al, [edx]	//empty space
-					sub		edi, eax
-					mov		cl, [edx + 1]
-					add		edx, 2
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_SIMPLE
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_SIMPLE :
+				//mov		edi, scrofs			//edi-screen pointer
+				//mov		esi, CDPOS			//esi-points array
+				//mov		ebx, WSHIFT			//ebx-encoding pointer
+				//mov		edx, ofst			//edx-mask offset
+				//xor		eax, eax
+				//xor		ecx, ecx
+				//cld
+				//sub		edi, ScrWidth
+				//mov		LineStart, edi
+				unsigned int TmpEDI = scrofs;			//edi-screen pointer
+				unsigned int TmpESI = CDPOS;			//esi-points array
+				unsigned int TmpEBX = reinterpret_cast<unsigned int>(WSHIFT);		//ebx-encoding pointer
+				unsigned int TmpEDX = ofst;			//edx-mask offset
+				unsigned int TmpEAX = 0, TmpECX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				TmpEDI -= ScrWidth;
+				LineStart = TmpEDI;
+			CLIPLEFT_START_SCANLINE :
+				//mov		edi, LineStart
+				//mov		al, [edx]
+				//inc		edx
+				TmpEDI = LineStart;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpEDX++;
+				//add		edi, [ebx]
+				TmpEDI += *reinterpret_cast<unsigned int *>(TmpEBX);
+				//xchg	CLIP, edx
+				unsigned int TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				//add		edx, [ebx]
+				TmpEDX += *reinterpret_cast<unsigned int *>(TmpEBX);
+				//add		ebx, 4
+				TmpEBX += 4;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//mov		CURCLIP, edx
+				CURCLIP = TmpEDX;
+				//or al, al
+				//xchg	CLIP, edx
+				//mov		LineStart, edi
+				//jnz		CLIPLEFT_DRAW_LINE
+				TmpUInt = CLIP;
+				CLIP = TmpEDX;
+				TmpEDX = TmpUInt;
+				LineStart = TmpEDI;
+				if (TmpAL != 0) goto CLIPLEFT_DRAW_LINE;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_LINE :
+				//test	al, 128
+				//jnz		CLIPLEFT_DRAW_COMPLEX_LINE
+				if ((TmpAL & 128) != 0) goto CLIPLEFT_DRAW_COMPLEX_LINE;
+				//drawing simple line
+				//or al, al
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				//mov		TEMP1, eax
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_SIMPLE_SEGMENT :
+				//mov		al, [edx]	//empty space
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+				//sub		edi, eax
+				TmpEDI -= TmpEAX;
+				//mov		cl, [edx + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+				//add		edx, 2
+				TmpEDX += 2;
+				//sub		CURCLIP, eax
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_SIMPLE_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_SIMPLE_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_SIMPLE
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_SIMPLE;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_SIMPLE :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_SIMPLE_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		MPL2_1
-					xor		eax, eax
-					MPL2_0 : mov		al, [edi]
-					sub		al, 0xB0
-					cmp		al, 0x0B
-					ja		MPL2_0A
-					mov		ah, al
-					mov		al, [esi]
-					mov		al, [refl + eax]
-					mov[edi], al
-					MPL2_0A : inc		esi
-					dec		edi
-					dec		cl
-					jnz		MPL2_0
-					MPL2_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //INVERTED
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_SIMPLE_SEGMENT
-					CLIPLEFT_NEXT_SEGMENT :
-				dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_DRAW_COMPLEX_LINE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_SIMPLE_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL2_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL2_1;
+				TmpEAX = 0;
+			MPL2_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//sub		al, 0xB0
+				TmpAL -= 0xB0u;
+				//cmp		al, 0x0B
+				//ja		MPL2_0A
+				if (TmpAL > 0x0Bu) goto MPL2_0A;
+				//mov		ah, al
+				TmpAH = TmpAL;
+				//mov		al, [esi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				//mov		al, [refl + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			MPL2_0A : 
+				//inc		esi
+				TmpESI++;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL2_0
+				if (TmpCL != 0) goto MPL2_0;
+			MPL2_1 : 
+				//xor		eax, eax
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //INVERTED
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_SIMPLE_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_SIMPLE_SEGMENT;
+			CLIPLEFT_NEXT_SEGMENT :
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_DRAW_COMPLEX_LINE :
 				//complex packed line
-				mov		SPACE_MASK, 0
-					mov		PIX_MASK, 0
-					test	al, 64
-					jz		CLIPLEFT_DCL1
-					mov		SPACE_MASK, 16
-					CLIPLEFT_DCL1:	test	al, 32
-					jz		CLIPLEFT_DCL2
-					mov		PIX_MASK, 16
-					CLIPLEFT_DCL2 : and		al, 31
-					jz		CLIPLEFT_NEXT_SEGMENT
-					mov		TEMP1, eax
-					CLIPLEFT_START_COMPLEX_SEGMENT :
-				mov		al, [edx]
-					mov		cl, al
-					and		al, 15
-					or al, SPACE_MASK
-					sub		edi, eax
-					shr		cl, 4
-					or cl, PIX_MASK
-					inc		edx
-					sub		CURCLIP, eax
-					jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
-					cmp		CURCLIP, ecx
-					jl		CLIPLEFT_PARTIAL_COMPLEX
-					//full  clipping
-					sub		CURCLIP, ecx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					jmp		CLIPLEFT_END_DRAW_PICTURE
-					CLIPLEFT_PARTIAL_COMPLEX :
+				//mov		SPACE_MASK, 0
+				//mov		PIX_MASK, 0
+				//test	al, 64
+				//jz		CLIPLEFT_DCL1
+				//mov		SPACE_MASK, 16
+				SPACE_MASK = 0;
+				PIX_MASK = 0;
+				if ((TmpAL & 64) == 0) goto CLIPLEFT_DCL1;
+				SPACE_MASK = 16;
+			CLIPLEFT_DCL1:	
+				//test	al, 32
+				//jz		CLIPLEFT_DCL2
+				//mov		PIX_MASK, 16
+				if ((TmpAL & 32) == 0) goto CLIPLEFT_DCL2;
+				PIX_MASK = 16;
+			CLIPLEFT_DCL2 : 
+				//and		al, 31
+				//jz		CLIPLEFT_NEXT_SEGMENT
+				//mov		TEMP1, eax
+				TmpAL &= 31;
+				if (TmpAL == 0) goto CLIPLEFT_NEXT_SEGMENT;
+				TEMP1 = TmpEAX;
+			CLIPLEFT_START_COMPLEX_SEGMENT :
+				//mov		al, [edx]
+				//mov		cl, al
+				//and		al, 15
+				//or al, SPACE_MASK
+				//sub		edi, eax
+				//shr		cl, 4
+				//or cl, PIX_MASK
+				//inc		edx
+				//sub		CURCLIP, eax
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+				TmpCL = TmpAL;
+				TmpAL &= 15;
+				TmpAL |= SPACE_MASK;
+				TmpEDI -= TmpEAX;
+				TmpCL >>= 4;
+				TmpCL |= PIX_MASK;
+				TmpEDX++;
+				CURCLIP -= TmpEAX;
+				//jle		CLIPLEFT_DRAW_COMPLEX_SEGMENT
+				if (CURCLIP <= 0) goto CLIPLEFT_DRAW_COMPLEX_SEGMENT;
+				//cmp		CURCLIP, ecx
+				//jl		CLIPLEFT_PARTIAL_COMPLEX
+				if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPLEFT_PARTIAL_COMPLEX;
+				//full  clipping
+				//sub		CURCLIP, ecx
+				CURCLIP -= TmpECX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//sub		edi, ecx
+				TmpEDI -= TmpECX;
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+				//jmp		CLIPLEFT_END_DRAW_PICTURE
+				goto CLIPLEFT_END_DRAW_PICTURE;
+			CLIPLEFT_PARTIAL_COMPLEX :
 				//partial clipping
-				add		esi, CURCLIP
-					sub		edi, CURCLIP
-					sub		ecx, CURCLIP
-					mov		CURCLIP, -1
-					CLIPLEFT_DRAW_COMPLEX_SEGMENT :
-					//*****************************************//
-					//put various code with encoding&loop there//INVERTED
-					//*****************************************//
-					or cl, cl
-					jz		MPL3_1
-					xor		eax, eax
-					MPL3_0 : mov		al, [edi]
-					sub		al, 0xB0
-					cmp		al, 0x0B
-					ja		MPL3_0A
-					mov		ah, al
-					mov		al, [esi]
-					mov		al, [refl + eax]
-					mov[edi], al
-					MPL3_0A : inc		esi
-					dec		edi
-					dec		cl
-					jnz		MPL3_0
-					MPL3_1 : xor		eax, eax
-					//*****************************************//
-					//          end of variation zone          //INVERTED
-					//*****************************************//
-					dec		TEMP1
-					jnz		CLIPLEFT_START_COMPLEX_SEGMENT
-					dec		NLines
-					jnz		CLIPLEFT_START_SCANLINE
-					CLIPLEFT_END_DRAW_PICTURE :
+				//add		esi, CURCLIP
+				TmpESI += CURCLIP;
+				//sub		edi, CURCLIP
+				TmpEDI -= CURCLIP;
+				//sub		ecx, CURCLIP
+				TmpECX -= CURCLIP;
+				//mov		CURCLIP, -1
+				CURCLIP = -1;
+			CLIPLEFT_DRAW_COMPLEX_SEGMENT :
+				//*****************************************//
+				//put various code with encoding&loop there//INVERTED
+				//*****************************************//
+				//or cl, cl
+				//jz		MPL3_1
+				//xor		eax, eax
+				if (TmpCL == 0) goto MPL3_1;
+				TmpEAX = 0;
+			MPL3_0 : 
+				//mov		al, [edi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				//sub		al, 0xB0
+				TmpAL -= 0xB0u;
+				//cmp		al, 0x0B
+				//ja		MPL3_0A
+				if (TmpAL > 0x0Bu) goto MPL3_0A;
+				//mov		ah, al
+				TmpAH = TmpAL;
+				//mov		al, [esi]
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				//mov		al, [refl + eax]
+				TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+				//mov[edi], al
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			MPL3_0A : 
+				//inc		esi
+				TmpESI++;
+				//dec		edi
+				TmpEDI--;
+				//dec		cl
+				TmpCL--;
+				//jnz		MPL3_0
+				if (TmpCL != 0) goto MPL3_0;
+			MPL3_1 : 
+				TmpEAX = 0;
+				//*****************************************//
+				//          end of variation zone          //INVERTED
+				//*****************************************//
+				//dec		TEMP1
+				TEMP1--;
+				//jnz		CLIPLEFT_START_COMPLEX_SEGMENT
+				if (TEMP1 != 0) goto CLIPLEFT_START_COMPLEX_SEGMENT;
+				//dec		NLines
+				NLines--;
+				//jnz		CLIPLEFT_START_SCANLINE
+				if (NLines != 0) goto CLIPLEFT_START_SCANLINE;
+			CLIPLEFT_END_DRAW_PICTURE :
 				//end code
-				pop		edi
-					pop		esi
-					popf
+				//pop		edi
+				//pop		esi
+				//popf
+				;
 			};
 		}
 		else
@@ -7931,175 +12903,309 @@ void GP_ShowMaskedMirrorPictInv( int x, int y, GP_Header* Pic, byte* CData, int*
 				//****************************************************************//
 				CLIP = x - WindX + 1;
 				int ADDESI;
-				__asm {
-					pushf
-					push	esi
-					push	edi
+				// BoonXRay 27.07.2017
+				//__asm 
+				{
+					//pushf
+					//push	esi
+					//push	edi
 					//initialisation
-					mov		edi, scrofs			//edi-screen pointer
-					mov		esi, CDPOS			//esi-points array
-					mov		ebx, WSHIFT			//ebx-encoding pointer
-					mov		edx, ofst			//edx-mask offset
-					xor		eax, eax
-					xor		ecx, ecx
-					cld
-					sub		edi, ScrWidth
-					mov		LineStart, edi
-					CLIPRIGHT_START_SCANLINE :
-					mov		edi, LineStart
-						mov		al, [edx]
-						inc		edx
-						add		edi, [ebx]
-						mov		ADDESI, 0
-						xchg	CLIP, edx
-						add		edx, [ebx]
-						add		ebx, 4
-						add		edi, ScrWidth
-						mov		CURCLIP, edx
-						or al, al
-						xchg	CLIP, edx
-						mov		LineStart, edi
-						jnz		CLIPRIGHT_DRAW_LINE
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_LINE :
-					test	al, 128
-						jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
-						//drawing simple line
-						or al, al
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_SIMPLE_SEGMENT :
-					mov		al, [edx]	//empty space
-						sub		edi, eax
-						mov		cl, [edx + 1]
-						add		edx, 2
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_SIMPLE
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
-						CLIPRIGHT_PARTIAL_SIMPLE :
+					//mov		edi, scrofs			//edi-screen pointer
+					//mov		esi, CDPOS			//esi-points array
+					//mov		ebx, WSHIFT			//ebx-encoding pointer
+					//mov		edx, ofst			//edx-mask offset
+					//xor		eax, eax
+					//xor		ecx, ecx
+					//cld
+					//sub		edi, ScrWidth
+					//mov		LineStart, edi
+					unsigned int TmpEDI = scrofs;			//edi-screen pointer
+					unsigned int TmpESI = CDPOS;			//esi-points array
+					unsigned int TmpEBX = reinterpret_cast<unsigned int>(WSHIFT);		//ebx-encoding pointer
+					unsigned int TmpEDX = ofst;			//edx-mask offset
+					unsigned int TmpEAX = 0, TmpECX = 0;
+					unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+					unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+					unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+					TmpEDI -= ScrWidth;
+					LineStart = TmpEDI;
+				CLIPRIGHT_START_SCANLINE :
+					//mov		edi, LineStart
+					//mov		al, [edx]
+					//inc		edx
+					TmpEDI = LineStart;
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpEDX++;
+					//add		edi, [ebx]
+					TmpEDI+= * reinterpret_cast<unsigned int *>(TmpEBX);
+					//mov		ADDESI, 0
+					ADDESI = 0;
+					//xchg	CLIP, edx
+					unsigned int TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					TmpEDX = TmpUInt;
+					//add		edx, [ebx]
+					TmpEDX += *reinterpret_cast<unsigned int *>(TmpEBX);
+					//add		ebx, 4
+					TmpEBX += 4;
+					//add		edi, ScrWidth
+					TmpEDI += ScrWidth;
+					//mov		CURCLIP, edx
+					CURCLIP = TmpEDX;
+					//or al, al
+					//xchg	CLIP, edx
+					//mov		LineStart, edi
+					//jnz		CLIPRIGHT_DRAW_LINE
+					TmpUInt = CLIP;
+					CLIP = TmpEDX;
+					LineStart = TmpEDI;
+					TmpEDX = TmpUInt;
+					if (TmpAL != 0) goto CLIPRIGHT_DRAW_LINE;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_LINE :
+					//test	al, 128
+					//jnz		CLIPRIGHT_DRAW_COMPLEX_LINE
+					if ((TmpAL & 128) != 0) goto CLIPRIGHT_DRAW_COMPLEX_LINE;
+					//drawing simple line
+					//or al, al
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_SIMPLE_SEGMENT :
+					//mov		al, [edx]	//empty space
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);	//empty space
+					//sub		edi, eax
+					TmpEDI -= TmpEAX;
+					//mov		cl, [edx + 1]
+					TmpCL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+					//add		edx, 2
+					TmpEDX += 2;
+					//sub		CURCLIP, eax
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_SIMPLE
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_SIMPLE;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_SIMPLE_SEGMENT
+					goto CLIPRIGHT_DRAW_SIMPLE_SEGMENT;
+				CLIPRIGHT_PARTIAL_SIMPLE :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		MPL4_1
-						xor		eax, eax
-						MPL4_0 : mov		al, [edi]
-						sub		al, 0xB0
-						cmp		al, 0x0B
-						ja		MPL4_0A
-						mov		ah, al
-						mov		al, [esi]
-						mov		al, [refl + eax]
-						mov[edi], al
-						MPL4_0A : inc		esi
-						dec		edi
-						dec		cl
-						jnz		MPL4_0
-						MPL4_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //INVERTED
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
-						CLIPRIGHT_NEXT_SEGMENT :
-					dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_DRAW_COMPLEX_LINE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_SIMPLE_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL4_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL4_1;
+					TmpEAX = 0;
+				MPL4_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//sub		al, 0xB0
+					TmpAL -= 0xB0u;
+					//cmp		al, 0x0B
+					//ja		MPL4_0A
+					if (TmpAL > 0x0Bu) goto MPL4_0A;
+					//mov		ah, al
+					TmpAH = TmpAL;
+					//mov		al, [esi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					//mov		al, [refl + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				MPL4_0A : 
+					//inc		esi
+					TmpESI++;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL4_0
+					if (TmpCL != 0) goto MPL4_0;
+				MPL4_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //INVERTED
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_SIMPLE_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_SIMPLE_SEGMENT;
+				CLIPRIGHT_NEXT_SEGMENT :
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_DRAW_COMPLEX_LINE :
 					//complex packed line
-					mov		SPACE_MASK, 0
-						mov		PIX_MASK, 0
-						test	al, 64
-						jz		CLIPRIGHT_DCL1
-						mov		SPACE_MASK, 16
-						CLIPRIGHT_DCL1:		test	al, 32
-						jz		CLIPRIGHT_DCL2
-						mov		PIX_MASK, 16
-						CLIPRIGHT_DCL2 : and		al, 31
-						jz		CLIPRIGHT_NEXT_SEGMENT
-						mov		TEMP1, eax
-						CLIPRIGHT_START_COMPLEX_SEGMENT :
-					mov		al, [edx]
-						mov		cl, al
-						and		al, 15
-						or al, SPACE_MASK
-						sub		edi, eax
-						shr		cl, 4
-						or cl, PIX_MASK
-						inc		edx
-						sub		CURCLIP, eax
-						jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
-						//full clipping until the end of line
-						add		esi, ecx
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						jmp		CLIPRIGHT_END_DRAW_PICTURE
-						CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
-					cmp		CURCLIP, ecx
-						jl		CLIPRIGHT_PARTIAL_COMPLEX
-						sub		CURCLIP, ecx
-						jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
-						CLIPRIGHT_PARTIAL_COMPLEX :
+					//mov		SPACE_MASK, 0
+					//mov		PIX_MASK, 0
+					//test	al, 64
+					//jz		CLIPRIGHT_DCL1
+					//mov		SPACE_MASK, 16
+					SPACE_MASK = 0;
+					PIX_MASK = 0;
+					if ((TmpAL & 64) == 0) goto CLIPRIGHT_DCL1;
+					SPACE_MASK = 16;
+				CLIPRIGHT_DCL1:		
+					//test	al, 32
+					//jz		CLIPRIGHT_DCL2
+					//mov		PIX_MASK, 16
+					if ((TmpAL & 32) == 0) goto CLIPRIGHT_DCL2;
+					PIX_MASK = 16;
+				CLIPRIGHT_DCL2 : 
+					//and		al, 31
+					//jz		CLIPRIGHT_NEXT_SEGMENT
+					//mov		TEMP1, eax
+					TmpAL &= 31;
+					if (TmpAL == 0) goto CLIPRIGHT_NEXT_SEGMENT;
+					TEMP1 = TmpEAX;
+				CLIPRIGHT_START_COMPLEX_SEGMENT :
+					//mov		al, [edx]
+					//mov		cl, al
+					//and		al, 15
+					//or al, SPACE_MASK
+					//sub		edi, eax
+					//shr		cl, 4
+					//or cl, PIX_MASK
+					//inc		edx
+					//sub		CURCLIP, eax
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+					TmpCL = TmpAL;
+					TmpAL &= 15;
+					TmpAL |= SPACE_MASK;
+					TmpEDI -= TmpEAX;
+					TmpCL >>= 4;
+					TmpCL |= PIX_MASK;
+					TmpEDX++;
+					CURCLIP -= TmpEAX;
+					//jg		CLIPRIGHT_TRY_TO_CLIP_COMPLEX
+					if (CURCLIP > 0) goto CLIPRIGHT_TRY_TO_CLIP_COMPLEX;
+					//full clipping until the end of line
+					//add		esi, ecx
+					TmpESI += TmpECX;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+					//jmp		CLIPRIGHT_END_DRAW_PICTURE
+					goto CLIPRIGHT_END_DRAW_PICTURE;
+				CLIPRIGHT_TRY_TO_CLIP_COMPLEX :
+					//cmp		CURCLIP, ecx
+					//jl		CLIPRIGHT_PARTIAL_COMPLEX
+					if (static_cast<unsigned int>(CURCLIP) < TmpECX) goto CLIPRIGHT_PARTIAL_COMPLEX;
+					//sub		CURCLIP, ecx
+					CURCLIP -= TmpECX;
+					//jmp		CLIPRIGHT_DRAW_COMPLEX_SEGMENT
+					goto CLIPRIGHT_DRAW_COMPLEX_SEGMENT;
+				CLIPRIGHT_PARTIAL_COMPLEX :
 					//partial clipping
-					sub		ecx, CURCLIP
-						mov		ADDESI, ecx
-						mov		ecx, CURCLIP
-						mov		CURCLIP, -1
-						CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
-						//*****************************************//
-						//put various code with encoding&loop there//INVERTED
-						//*****************************************//
-						or cl, cl
-						jz		MPL5_1
-						xor		eax, eax
-						MPL5_0 : mov		al, [edi]
-						sub		al, 0xB0
-						cmp		al, 0x0B
-						ja		MPL5_0A
-						mov		ah, al
-						mov		al, [esi]
-						mov		al, [refl + eax]
-						mov[edi], al
-						MPL5_0A : inc		esi
-						dec		edi
-						dec		cl
-						jnz		MPL5_0
-						MPL5_1 : xor		eax, eax
-						//*****************************************//
-						//          end of variation zone          //INVERTED
-						//*****************************************//
-						add		esi, ADDESI
-						dec		TEMP1
-						jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
-						dec		NLines
-						jnz		CLIPRIGHT_START_SCANLINE
-						CLIPRIGHT_END_DRAW_PICTURE :
+					//sub		ecx, CURCLIP
+					TmpECX -= CURCLIP;
+					//mov		ADDESI, ecx
+					ADDESI = TmpECX;
+					//mov		ecx, CURCLIP
+					TmpECX = CURCLIP;
+					//mov		CURCLIP, -1
+					CURCLIP = -1;
+				CLIPRIGHT_DRAW_COMPLEX_SEGMENT :
+					//*****************************************//
+					//put various code with encoding&loop there//INVERTED
+					//*****************************************//
+					//or cl, cl
+					//jz		MPL5_1
+					//xor		eax, eax
+					if (TmpCL == 0) goto MPL5_1;
+					TmpEAX = 0;
+				MPL5_0 : 
+					//mov		al, [edi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+					//sub		al, 0xB0
+					TmpAL -= 0xB0u;
+					//cmp		al, 0x0B
+					//ja		MPL5_0A
+					if (TmpAL > 0x0Bu) goto MPL5_0A;
+					//mov		ah, al
+					TmpAH = TmpAL;
+					//mov		al, [esi]
+					TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+					//mov		al, [refl + eax]
+					TmpAL = *reinterpret_cast<unsigned char *>(refl + TmpEAX);
+					//mov[edi], al
+					*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				MPL5_0A : 
+					//inc		esi
+					TmpESI++;
+					//dec		edi
+					TmpEDI--;
+					//dec		cl
+					TmpCL--;
+					//jnz		MPL5_0
+					if (TmpCL != 0) goto MPL5_0;
+				MPL5_1 : 
+					//xor		eax, eax
+					TmpEAX = 0;
+					//*****************************************//
+					//          end of variation zone          //INVERTED
+					//*****************************************//
+					//add		esi, ADDESI
+					TmpESI += ADDESI;
+					//dec		TEMP1
+					TEMP1--;
+					//jnz		CLIPRIGHT_START_COMPLEX_SEGMENT
+					if (TEMP1 != 0) goto CLIPRIGHT_START_COMPLEX_SEGMENT;
+					//dec		NLines
+					NLines--;
+					//jnz		CLIPRIGHT_START_SCANLINE
+					if (NLines != 0) goto CLIPRIGHT_START_SCANLINE;
+				CLIPRIGHT_END_DRAW_PICTURE :
 					//end code
-					pop		edi
-						pop		esi
-						popf
+					//pop		edi
+					//pop		esi
+					//popf
+					;
 				};
 			};
 		};
@@ -8107,168 +13213,318 @@ void GP_ShowMaskedMirrorPictInv( int x, int y, GP_Header* Pic, byte* CData, int*
 };
 inline void NatUnpack( byte* Dest, byte* Src, int Len )
 {
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		ecx, Len
-		shr		ecx, 2
-		mov		esi, Src
-		mov		edi, Dest
-		cld
-		jcxz	NTZERO
-		NTUNP1 : lodsb
-				 mov		bl, al
-				 mov		bh, al
-				 and		bl, 00110000b
-				 and		bh, 11000000b
-				 shr		bl, 4
-				 shr		bh, 6
-				 shl		ebx, 16
-				 mov		bl, al
-				 mov		bh, al
-				 and		bh, 00001100b
-				 and		bl, 00000011b
-				 shr		bh, 2
-				 mov		eax, ebx
-				 stosd
-				 dec		ecx
-				 jnz		NTUNP1
-				 NTZERO : popf
-						  pop		edi
-						  pop		esi
+	// BoonXRay 27.07.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		ecx, Len
+		unsigned int TmpECX = Len;
+		unsigned int TmpEAX = 0, TmpEBX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		unsigned char & TmpBH = *(reinterpret_cast<unsigned char *>(&TmpEBX) + 1);
+		//shr		ecx, 2
+		TmpECX >>= 2;
+		//mov		esi, Src
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(Src);
+		//mov		edi, Dest
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(Dest);
+		//cld
+		//jcxz	NTZERO
+		if (TmpECX == 0) goto NTZERO;
+	NTUNP1 : 
+		//lodsb
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+		TmpESI++;
+		//mov		bl, al
+		TmpBL = TmpAL;
+		//mov		bh, al
+		TmpBH = TmpAL;
+		//and		bl, 00110000b
+		TmpBL &= 0x30u;
+		//and		bh, 11000000b
+		TmpBH &= 0xC0u;
+		//shr		bl, 4
+		TmpBL >>= 4;
+		//shr		bh, 6
+		TmpBH >>= 6;
+		//shl		ebx, 16
+		TmpEBX <<= 16;
+		//mov		bl, al
+		TmpBL = TmpAL;
+		//mov		bh, al
+		TmpBH = TmpAL;
+		//and		bh, 00001100b
+		TmpBH &= 0x0Cu;
+		//and		bl, 00000011b
+		TmpBL &= 0x03u;
+		//shr		bh, 2
+		TmpBH >>= 2;
+		//mov		eax, ebx
+		TmpEAX = TmpEBX;
+		//stosd
+		*reinterpret_cast<unsigned int *>(TmpEDI) = TmpEAX;
+		TmpEDI += sizeof(TmpEAX);
+		//dec		ecx
+		TmpECX--;
+		//jnz		NTUNP1
+		if (TmpECX != 0) goto NTUNP1;
+	NTZERO : 
+		//popf
+		//pop		edi
+		//pop		esi
+		;
 	};
 };
 inline void GreyUnpack( byte* Dest, byte* Src, int Len )
 {
 	Len >>= 1;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		ecx, Len
-		shr		ecx, 1
-		mov		esi, Src
-		mov		edi, Dest
-		cld
-		jcxz	NTZERO
-		NTUNP1 : lodsb
-				 mov		bl, al
-				 mov		bh, al
-				 and		bl, 00001111b
-				 shl     bl, 1
-				 and bh, 11110000b
-				 shr		bh, 3
-				 mov		ax, bx
-				 stosw
-				 dec		ecx
-				 jnz		NTUNP1
-				 NTZERO : popf
-						  pop		edi
-						  pop		esi
+	// BoonXRay 27.07.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		ecx, Len
+		//shr		ecx, 1
+		//mov		esi, Src
+		//mov		edi, Dest
+		unsigned int TmpECX = Len;
+		TmpECX >>= 1;
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(Src);
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(Dest);
+		unsigned int TmpEAX = 0, TmpEBX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+		unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		unsigned char & TmpBH = *(reinterpret_cast<unsigned char *>(&TmpEBX) + 1);
+		unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+		//mov		edi, Dest
+		//cld
+		//jcxz	NTZERO
+		if (TmpECX == 0) goto NTZERO;
+	NTUNP1 : 
+		//lodsb
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+		TmpESI++;
+		//mov		bl, al
+		TmpBL = TmpAL;
+		//mov		bh, al
+		TmpBH = TmpAL;
+		//and		bl, 00001111b
+		TmpBL &= 0x0Fu;
+		//shl     bl, 1
+		TmpBL <<= 1;
+		//and bh, 11110000b
+		TmpBH &= 0xF0u;
+		//shr		bh, 3
+		TmpBH >>= 3;
+		//mov		ax, bx
+		TmpAX = TmpBX;
+		//stosw
+		*reinterpret_cast<unsigned short *>(TmpEDI) = TmpAX;
+		TmpEDI += sizeof(TmpAX);
+		//dec		ecx
+		TmpECX--;
+		//jnz		NTUNP1
+		if (TmpECX != 0) goto NTUNP1;
+	NTZERO : 
+		//popf
+		//pop		edi
+		//pop		esi
+		;
 	};
 };
 inline void StdUnpack( byte* Dest, byte* Src, int Len, byte* Voc )
 {
 	//COUNTER++;
 	byte Calc;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		cld
-		mov		ebx, Src
-		mov		edi, Dest
-		mov		edx, Len
-		xor		eax, eax
-		xor		ecx, ecx
-		Unpack_Loop_Start_Octant :
-		mov		ah, [ebx]
-			mov		Calc, 8
-			inc		ebx
-			Unpack_Local_Start :
-		test	ah, 128
-			jz		O1UL_1
-			mov		cx, [ebx]
-			mov		esi, ecx
-			shr		ecx, 12
-			and esi, 0xFFF
-			add		ecx, 3
-			add		esi, Voc
-			add		ebx, 2
-			sub		edx, ecx
-			rep		movsb
-			jle		Unpack_End
-			shl		ah, 1
-			dec		Calc
-			jnz		Unpack_Local_Start
-			jmp		Unpack_Loop_Start_Octant
-			O1UL_1 : mov		al, [ebx]
-			mov[edi], al
-			inc		edi
-			dec		edx
-			jz		Unpack_End
-			inc		ebx
-			shl		ah, 1
-			dec		Calc
-			jnz		Unpack_Local_Start
-			jmp		Unpack_Loop_Start_Octant
-			Unpack_End :
-		popf
-			pop		edi
-			pop		esi
+	// BoonXRay 27.07.2017
+	//__asm
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//cld
+		//mov		ebx, Src
+		unsigned int TmpEBX = reinterpret_cast<unsigned int>(Src);
+		//mov		edi, Dest
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(Dest);
+		//mov		edx, Len
+		unsigned int TmpEDX = Len;
+		//xor		eax, eax
+		//xor		ecx, ecx
+		unsigned int TmpEAX = 0, TmpECX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+		unsigned int TmpESI = 0;
+	Unpack_Loop_Start_Octant :
+		//mov		ah, [ebx]
+		TmpAH = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//mov		Calc, 8
+		Calc = 8;
+		//inc		ebx
+		TmpEBX++;
+	Unpack_Local_Start :
+		//test	ah, 128
+		//jz		O1UL_1
+		if ((TmpAH & 128) == 0) goto O1UL_1;
+		//mov		cx, [ebx]
+		TmpCX = *reinterpret_cast<unsigned short *>(TmpEBX);
+		//mov		esi, ecx
+		TmpESI = TmpECX;
+		//shr		ecx, 12
+		TmpECX >>= 12;
+		//and esi, 0xFFF
+		TmpESI &= 0x0FFFu;
+		//add		ecx, 3
+		TmpECX += 3;
+		//add		esi, Voc
+		TmpESI += reinterpret_cast<unsigned int>(Voc);
+		//add		ebx, 2
+		TmpEBX += 2;
+		//sub		edx, ecx
+		bool Flag = TmpEDX <= TmpECX;
+		TmpEDX -= TmpECX;
+		//rep		movsb
+		for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+		//jle		Unpack_End
+		if (Flag) goto Unpack_End;
+		//shl		ah, 1
+		TmpAH <<= 1;
+		//dec		Calc
+		Calc--;
+		//jnz		Unpack_Local_Start
+		if (Calc != 0) goto Unpack_Local_Start;
+		//jmp		Unpack_Loop_Start_Octant
+		goto Unpack_Loop_Start_Octant;
+	O1UL_1 : 
+		//mov		al, [ebx]
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//mov[edi], al
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc		edi
+		TmpEDI++;
+		//dec		edx
+		TmpEDX--;
+		//jz		Unpack_End
+		if (TmpEDX == 0) goto Unpack_End;
+		//inc		ebx
+		TmpEBX++;
+		//shl		ah, 1
+		TmpAH <<= 1;
+		//dec		Calc
+		Calc--;
+		//jnz		Unpack_Local_Start
+		if (Calc != 0) goto Unpack_Local_Start;
+		//jmp		Unpack_Loop_Start_Octant
+		goto Unpack_Loop_Start_Octant;
+	Unpack_End :
+		//popf
+		//pop		edi
+		//pop		esi
+		;
 	};
 };
 inline void LZUnpack( byte* Dest, byte* Src, int Len )
 {
 	byte Calc;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		cld
-		mov		ebx, Src
-		mov		edi, Dest
-		mov		edx, Len
-		xor		eax, eax
-		xor		ecx, ecx
-		Unpack_Loop_Start_Octant :
-		mov		ah, [ebx]
-			mov		Calc, 8
-			inc		ebx
-			Unpack_Local_Start :
-		test	ah, 1
-			jz		O1UL_1
-			mov		cx, [ebx]
-			mov		esi, ecx
-			and     esi, 0x1FFF
-			neg     esi
-			shr		ecx, 13
-			add		ecx, 3
-			add		esi, edi
-			dec		esi
-			add		ebx, 2
-			sub		edx, ecx
-			rep		movsb
-			jle		Unpack_End
-			shr		ah, 1
-			dec		Calc
-			jnz		Unpack_Local_Start
-			jmp		Unpack_Loop_Start_Octant
-			O1UL_1 : mov		al, [ebx]
-			mov[edi], al
-			inc		edi
-			dec		edx
-			jz		Unpack_End
-			inc		ebx
-			shr		ah, 1
-			dec		Calc
-			jnz		Unpack_Local_Start
-			jmp		Unpack_Loop_Start_Octant
-			Unpack_End :
-		popf
-			pop		edi
-			pop		esi
+	// BoonXRay 27.07.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//cld
+		//mov		ebx, Src
+		unsigned int TmpEBX = reinterpret_cast<unsigned int>(Src);
+		//mov		edi, Dest
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(Dest);
+		//mov		edx, Len
+		unsigned int TmpEDX = Len;
+		//xor		eax, eax
+		//xor		ecx, ecx
+		unsigned int TmpEAX = 0, TmpECX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+		unsigned int TmpESI = 0;
+	Unpack_Loop_Start_Octant :
+		//mov		ah, [ebx]
+		TmpAH = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//mov		Calc, 8
+		Calc = 8;
+		//inc		ebx
+		TmpEBX++;
+	Unpack_Local_Start :
+		//test	ah, 1
+		//jz		O1UL_1
+		if ((TmpAH & 1) == 0) goto O1UL_1;
+		//mov		cx, [ebx]
+		TmpCX = *reinterpret_cast<unsigned short *>(TmpEBX);
+		//mov		esi, ecx
+		TmpESI = TmpECX;
+		//and     esi, 0x1FFF
+		TmpESI &= 0x1FFFu;
+		//neg     esi
+		//TmpESI *= -1;
+		TmpESI = static_cast<unsigned int>(-1 * TmpESI);
+		//shr		ecx, 13
+		TmpECX >>= 13;
+		//add		ecx, 3
+		TmpECX += 3;
+		//add		esi, edi
+		TmpESI += TmpEDI;
+		//dec		esi
+		TmpESI--;
+		//add		ebx, 2
+		TmpEBX += 2;
+		//sub		edx, ecx
+		bool Flag = TmpEDX <= TmpECX;
+		TmpEDX -= TmpECX;
+		//rep		movsb
+		for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+		//jle		Unpack_End
+		if (Flag) goto Unpack_End;
+		//shr		ah, 1
+		TmpAH >>= 1;
+		//dec		Calc
+		Calc--;
+		//jnz		Unpack_Local_Start
+		if (Calc != 0) goto Unpack_Local_Start;
+		//jmp		Unpack_Loop_Start_Octant
+		goto Unpack_Loop_Start_Octant;
+	O1UL_1 : 
+		//mov		al, [ebx]
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//mov[edi], al
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc		edi
+		TmpEDI++;
+		//dec		edx
+		TmpEDX--;
+		//jz		Unpack_End
+		if (TmpEDX == 0) goto Unpack_End;
+		//inc		ebx
+		TmpEBX++;
+		//shr		ah, 1
+		TmpAH >>= 1;
+		//dec		Calc
+		Calc--;
+		//jnz		Unpack_Local_Start
+		if (Calc != 0) goto Unpack_Local_Start;
+		//jmp		Unpack_Loop_Start_Octant
+		goto Unpack_Loop_Start_Octant;
+	Unpack_End :
+		//popf
+		//pop		edi
+		//pop		esi
+		;
 	};
 };
 extern byte Bright[8192];
@@ -8615,11 +13871,15 @@ void GP_System::ShowGP(//IMPORTANT: show sprite with color masking
 			break;
 		};
 		DIFF = lpGPCUR->NextPict;
-		__asm {
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		};
+		// BoonXRay 28.07.2017
+		//__asm {
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//};
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
+
 		UnpackLen = lpGPCUR->CData >> 14;
 		CDOffs = lpGPCUR->CData & 16383;
 		byte Optx = lpGPCUR->Options;
@@ -8911,11 +14171,15 @@ void GP_System::ShowGPLayers(//IMPORTANT: color masking for units and buildings
 			break;
 		};
 		DIFF = lpGPCUR->NextPict;
-		__asm {
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		};
+		// BoonXRay 28.07.2017
+		//__asm {
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//};
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
+
 		UnpackLen = lpGPCUR->CData >> 14;
 		CDOffs = lpGPCUR->CData & 16383;
 		byte Optx = lpGPCUR->Options;
@@ -9027,11 +14291,15 @@ void GP_System::ShowGPTransparent( int x, int y, int FileIndex, int SprIndex, by
 			break;
 		};
 		DIFF = lpGPCUR->NextPict;
-		__asm {
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		};
+		// BoonXRay 28.07.2017
+		//__asm {
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//};
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
+
 		UnpackLen = lpGPCUR->CData >> 14;
 		CDOffs = lpGPCUR->CData & 16383;
 		byte Optx = lpGPCUR->Options;
@@ -9183,11 +14451,15 @@ void GP_System::ShowGPTransparentLayers( int x, int y, int FileIndex, int SprInd
 			break;
 		};
 		DIFF = lpGPCUR->NextPict;
-		__asm {
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		};
+		// BoonXRay 28.07.2017
+		//__asm {
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//};
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
+
 		UnpackLen = lpGPCUR->CData >> 14;
 		CDOffs = lpGPCUR->CData & 16383;
 		byte Optx = lpGPCUR->Options;
@@ -9244,12 +14516,15 @@ void GP_System::FreeRefs( int FileIndex )
 			*PAK = 0xFFFFFFFF;
 			DIFF = lpGPCUR->NextPict;
 
-			__asm
-			{
-				mov		eax, lpGP
-				add		eax, DIFF
-				mov		lpGPCUR, eax
-			}
+			// BoonXRay 28.07.2017
+			//__asm
+			//{
+			//	mov		eax, lpGP
+			//	add		eax, DIFF
+			//	mov		lpGPCUR, eax
+			//}
+			char * TmpPtr = reinterpret_cast<char *>(lpGP);
+			lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 
 			UnpackLen = lpGPCUR->CData >> 14;
 			CDOffs = lpGPCUR->CData & 16383;
@@ -9462,11 +14737,15 @@ void GP_System::ShowGPPal(//IMPORTANT: color masking for buildings (only in plac
 			break;
 		};
 		DIFF = lpGPCUR->NextPict;
-		__asm {
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		};
+		// BoonXRay 28.07.2017
+		//__asm {
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//};
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
+
 		UnpackLen = lpGPCUR->CData >> 14;
 		CDOffs = lpGPCUR->CData & 16383;
 		byte Optx = lpGPCUR->Options;
@@ -9697,11 +14976,15 @@ void GP_System::ShowGPPalLayers(//IMPORTANT: color masking for buildings (only w
 			break;
 		};
 		DIFF = lpGPCUR->NextPict;
-		__asm {
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		};
+		// BoonXRay 28.07.2017
+		//__asm {
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//};
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
+
 		UnpackLen = lpGPCUR->CData >> 14;
 		CDOffs = lpGPCUR->CData & 16383;
 		byte Optx = lpGPCUR->Options;
@@ -9760,53 +15043,7 @@ GP_System GPS;
 
 extern int mapx;
 extern int mapy;
-static int npp = 0;
-void OvpBar1( int x, int y, int Lx, int Ly, byte c )
-{
-	int ofst = int( ScreenPtr ) + x + y*ScrWidth;
-	__asm {
-		push	edi
-		mov		eax, ScrWidth
-		mov		bl, c
-		mov		edi, ofst
-		lppy : mov		ecx, Lx
-			   push	edi
-			   lppx : mov[edi], bl
-					  mov[edi + eax + 1], bl
-					  add		edi, 2
-					  dec		ecx
-					  jnz		lppx
-					  pop		edi
-					  add		edi, eax
-					  add		edi, eax
-					  dec		Ly
-					  jnz		lppy
-					  pop		edi
-	};
-};
-void OvpBar2( int x, int y, int Lx, int Ly, byte c )
-{
-	int ofst = int( ScreenPtr ) + x + y*ScrWidth;
-	__asm {
-		push	edi
-		mov		eax, ScrWidth
-		mov		bl, c
-		mov		edi, ofst
-		lppy : mov		ecx, Lx
-			   push	edi
-			   lppx : mov[edi + 1], bl
-					  mov[edi + eax], bl
-					  add		edi, 2
-					  dec		ecx
-					  jnz		lppx
-					  pop		edi
-					  add		edi, eax
-					  add		edi, eax
-					  dec		Ly
-					  jnz		lppy
-					  pop		edi
-	};
-};
+
 extern byte WaterCost[65536];
 //Waves
 void ShowGradPicture( int x, int y, int Lx, int Ly,
@@ -9821,39 +15058,70 @@ void ShowGradPicture( int x, int y, int Lx, int Ly,
 	int ofst = int( ScreenPtr ) + x + y*ScrWidth;
 	int addo = ScrWidth - Lx;
 
-	__asm
+	// BoonXRay 28.07.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		pushf
-		mov		esi, Bitmap
-		mov		edi, ofst
-		mov		ebx, a
-		mov		edx, b
-		lpp0 : mov		cl, byte ptr Lx
-			   push	ebx
-			   lpp1 : mov		eax, ebx
-					  shr		eax, 13
-					  mov		ah, [edi]
-					  and al, 11111000b
-					  or al, [esi]
-					  add		ebx, edx
-					  inc		esi
-					  mov		al, [WaterCost + eax]
-					  mov[edi], al
-					  inc edi
-					  dec		cl
-					  jnz		lpp1
-					  pop		ebx
-					  add		edx, d
-					  add		ebx, c
-					  add		esi, BMLx
-					  add		edi, addo
-					  dec		Ly
-					  jnz		lpp0
-					  popf
-					  pop		edi
-					  pop		esi
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		esi, Bitmap
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(Bitmap);
+		//mov		edi, ofst
+		unsigned int TmpEDI = ofst;
+		//mov		ebx, a
+		//mov		edx, b
+		unsigned int TmpEBX = a, TmpEDX = b;
+		unsigned int TmpEAX = 0, TmpECX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+		unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+	lpp0 : 
+		//mov		cl, byte ptr Lx
+		TmpCL = *reinterpret_cast<unsigned char *>(Lx);
+		//push	ebx
+		unsigned int TmpPushEBX = TmpEBX;
+	lpp1 : 
+		//mov		eax, ebx
+		TmpEAX = TmpEBX;
+		//shr		eax, 13
+		TmpEAX >>= 13;
+		//mov		ah, [edi]
+		TmpAH = *reinterpret_cast<unsigned char *>(TmpEDI);
+		//and al, 11111000b
+		TmpAL &= 0xF8u;
+		//or al, [esi]
+		TmpAL |= *reinterpret_cast<unsigned char *>(TmpESI);
+		//add		ebx, edx
+		TmpEBX += TmpEDX;
+		//inc		esi
+		TmpESI++;
+		//mov		al, [WaterCost + eax]
+		TmpAL = *reinterpret_cast<unsigned char *>(WaterCost + TmpEAX);
+		//mov[edi], al
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc edi
+		TmpEDI++;
+		//dec		cl
+		TmpCL--;
+		//jnz		lpp1
+		if (TmpCL != 0) goto lpp1;
+		//pop		ebx
+		TmpEBX = TmpPushEBX;
+		//add		edx, d
+		TmpEDX += d;
+		//add		ebx, c
+		TmpEBX += c;
+		//add		esi, BMLx
+		TmpESI += BMLx;
+		//add		edi, addo
+		TmpEDI += addo;
+		//dec		Ly
+		Ly--;
+		//jnz		lpp0
+		if (Ly != 0) goto lpp0;
+		//popf
+		//pop		edi
+		//pop		esi
 	}
 }
 
@@ -10226,95 +15494,168 @@ bool CheckInsideMask( GP_Header* Pic, int x, int y )
 	int NLines = Pic->NLines;
 	if (x >= Pic->Lx)return false;
 	if (y >= Pic->Ly)return false;
-	int ofst = int( Pic ) + 23;
+	// BoonXRay 15.07.2017 Сами данные за заголовком...
+	//int ofst = int( Pic ) + 23;
+	int ofst = int(Pic) + sizeof(GP_Header);
 	//skipping lines
 	if (y > 0)
 	{
-		__asm
+		// BoonXRay 29.07.2017
+		//__asm
 		{
-			mov  ecx, y
-			mov  ebx, ofst
-			xor  eax, eax
-			START_SKIP_1 :
-			mov  al, [ebx]
-				inc  ebx
-				test al, 128
-				jz   SIMPLE_LINE
-				//complex line
-				and  al, 31
-				add  ebx, eax
-				dec  ecx
-				jnz  START_SKIP_1
-				jmp  END_SKIP
-				SIMPLE_LINE :
-			shl  eax, 1
-				add  ebx, eax
-				dec  ecx
-				jnz  START_SKIP_1
-				END_SKIP :
-			mov  ofst, ebx
+			//mov  ecx, y
+			unsigned int TmpECX = y;
+			//mov  ebx, ofst
+			unsigned int TmpEBX = ofst;
+			//xor  eax, eax
+			unsigned int TmpEAX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		START_SKIP_1 :
+			//mov  al, [ebx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+			//inc  ebx
+			TmpEBX++;
+			//test al, 128
+			//jz   SIMPLE_LINE
+			if ((TmpAL & 128) == 0) goto SIMPLE_LINE;
+			//complex line
+			//and  al, 31
+			TmpAL &= 31;
+			//add  ebx, eax
+			TmpEBX += TmpEAX;
+			//dec  ecx
+			TmpECX--;
+			//jnz  START_SKIP_1
+			if (TmpECX != 0) goto START_SKIP_1;
+			//jmp  END_SKIP
+			goto END_SKIP;
+		SIMPLE_LINE :
+			//shl  eax, 1
+			TmpEAX <<= 1;
+			//add  ebx, eax
+			TmpEBX += TmpEAX;
+			//dec  ecx
+			TmpECX--;
+			//jnz  START_SKIP_1
+			if (TmpECX != 0) goto START_SKIP_1;
+		END_SKIP :
+			//mov  ofst, ebx
+			ofst = TmpEBX;
 		}
 	}
 
 	int SPACE_MASK = 0;
 	int DATA_MASK = 0;
 
-	__asm
+	// BoonXRay 29.07.2017
+	//__asm
 	{
-		mov  ebx, ofst
-		mov  edx, x
-		xor  eax, eax
+		//mov  ebx, ofst
+		unsigned int TmpEBX = ofst;
+		//mov  edx, x
+		unsigned int TmpEDX = x;
+		//xor  eax, eax
+		unsigned int TmpEAX = 0, TmpECX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
 
-		mov  al, [ebx]
-		test al, 128
-		jz   SIMP_L_1
-		mov  SPACE_MASK, 0
-		mov  DATA_MASK, 0
-		test al, 64
-		jz   MSK1
-		mov  SPACE_MASK, 16
-		MSK1:	test al, 32
-				jz   MSK2
-				mov  DATA_MASK, 16
-				MSK2 : and  al, 31
-					   inc  ebx
-					   CHK_1 :
-		mov  cl, [ebx]
-			and ecx, 15
-			or ecx, SPACE_MASK
-			sub  edx, ecx
-			jl   NOT_INSIDE
-			mov  cl, [ebx]
-			shr  ecx, 4
-			or ecx, DATA_MASK
-			sub  edx, ecx
-			jl   IS_INSIDE
-			inc  ebx
-			dec  al
-			jnz  CHK_1
-			NOT_INSIDE :
-		mov  eax, 0
-			jmp  DO_END
-			SIMP_L_1 :
-		or al, al
-			jz   NOT_INSIDE
-			inc  ebx
-			CHK_2 :
-		mov  cl, [ebx]
-			inc  ebx
-			sub  edx, ecx
-			jl   NOT_INSIDE
-			mov  cl, [ebx]
-			inc  ebx
-			sub  edx, ecx
-			jl   IS_INSIDE
-			dec  al
-			jnz  CHK_2
-			mov  eax, 0
-			jmp  DO_END
-			IS_INSIDE :
-		mov  eax, 1
-			DO_END :
+		//mov  al, [ebx]
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//test al, 128
+		//jz   SIMP_L_1
+		if ((TmpAL & 128) == 0) goto SIMP_L_1;
+		//mov  SPACE_MASK, 0
+		//mov  DATA_MASK, 0
+		//test al, 64
+		//jz   MSK1
+		//mov  SPACE_MASK, 16
+		SPACE_MASK = 0;
+		DATA_MASK = 0;
+		if ((TmpAL & 64) == 0) goto MSK1;
+		SPACE_MASK = 16;
+	MSK1:
+		//test al, 32
+		//jz   MSK2
+		//mov  DATA_MASK, 16
+		if ((TmpAL & 32) == 0) goto MSK2;
+		DATA_MASK = 16;
+	MSK2:
+		//and  al, 31
+		TmpAL &= 31;
+		//inc  ebx
+		TmpEBX++;
+	CHK_1:
+		//mov  cl, [ebx]
+		TmpCL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//and ecx, 15
+		TmpECX &= 15;
+		//or ecx, SPACE_MASK
+		TmpECX |= SPACE_MASK;
+		//sub  edx, ecx
+		bool Flag = TmpEDX < TmpECX;
+		TmpEDX -= TmpECX;
+		//jl   NOT_INSIDE
+		if (Flag) goto NOT_INSIDE;
+		//mov  cl, [ebx]
+		TmpCL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//shr  ecx, 4
+		TmpECX >>= 4;
+		//or ecx, DATA_MASK
+		TmpECX |= DATA_MASK;
+		//sub  edx, ecx
+		Flag = TmpEDX < TmpECX;
+		TmpEDX -= TmpECX;
+		//jl   IS_INSIDE
+		if (Flag) goto IS_INSIDE;
+		//inc  ebx
+		TmpEBX++;
+		//dec  al
+		TmpAL--;
+		//jnz  CHK_1
+		if (TmpAL != 0) goto CHK_1;
+	NOT_INSIDE :
+		//mov  eax, 0
+		TmpEAX = 0;
+		//jmp  DO_END
+		goto DO_END;
+	SIMP_L_1 :
+		//or al, al
+		//jz   NOT_INSIDE
+		if (TmpAL == 0) goto NOT_INSIDE;
+		//inc  ebx
+		TmpEBX++;
+	CHK_2 :
+		//mov  cl, [ebx]
+		TmpCL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//inc  ebx
+		TmpEBX++;
+		//sub  edx, ecx
+		Flag = TmpEDX < TmpECX;
+		TmpEDX -= TmpECX;
+		//jl   NOT_INSIDE
+		if (Flag) goto NOT_INSIDE;
+		//mov  cl, [ebx]
+		TmpCL = *reinterpret_cast<unsigned char *>(TmpEBX);
+		//inc  ebx
+		TmpEBX++;
+		//sub  edx, ecx
+		Flag = TmpEDX < TmpECX;
+		TmpEDX -= TmpECX;
+		//jl   IS_INSIDE
+		if (Flag) goto IS_INSIDE;
+		//dec  al
+		TmpAL--;
+		//jnz  CHK_2
+		if (TmpAL != 0) goto CHK_2;
+		//mov  eax, 0
+		TmpEAX = 0;
+		//jmp  DO_END
+		goto DO_END;
+	IS_INSIDE :
+		//mov  eax, 1
+		TmpEAX = 1;
+	DO_END :
+		return TmpEAX;
 	}
 }
 
@@ -10368,12 +15709,15 @@ __declspec( dllexport ) bool CheckGP_Inside( int FileIndex, int SprIndex, int dx
 		}
 
 		DIFF = lpGPCUR->NextPict;
-		__asm
-		{
-			mov		eax, lpGP
-			add		eax, DIFF
-			mov		lpGPCUR, eax
-		}
+		// BoonXRay 29.07.2017
+		//__asm
+		//{
+		//	mov		eax, lpGP
+		//	add		eax, DIFF
+		//	mov		lpGPCUR, eax
+		//}
+		char * TmpPtr = reinterpret_cast<char *>(lpGP);
+		lpGPCUR = reinterpret_cast<GP_Header*>(TmpPtr + DIFF);
 
 	} while (DIFF != -1);
 	return false;

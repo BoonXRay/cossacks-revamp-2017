@@ -10725,12 +10725,6 @@ int Transf5( int x, int y, int Hi )
 }
 
 //----------------------------------------------------------
-void CopyToOffScreen( int zx, int zy,
-	int srLx, int srLy,
-	byte* data );
-void CopyToRealScreen( int zx, int zy,
-	int srLx, int srLy,
-	byte* data );
 void CreateMiniMap();
 void ClearRender();
 int mul3( int );

@@ -63,232 +63,100 @@ static int BMdy;
 static int BMdx;
 static int OffsetX;
 static int OffsetY;
-bool PrepareToRender(int NLines, int startX, int startY) {
-	word curx;
-	__asm {
-		mov		ax, VertBuf[0]
-		mov		bx, VertBuf[2]
-		cmp		ax, 0xFFFF
-		je		uu1
-		cmp		bx, 0xFFFF
-		je		uu3
-		cmp		ax, bx
-		jb		uu3
-		mov		curx, bx
-		jmp		uu5
-		uu3 : mov		curx, ax
-			  jmp		uu5
-			  uu1 : mov		curx, 0xFFFF
-					uu5 :
-	};
-	OffsetX = -curx + startX;
-	OffsetY = -startY;
-	if (curx == 0xFFFF)return false;
-	int bmdxx = (BMdx & 0xFFFF);
-	int bmdxy = (BMdy & 0xFFFF);
-	int bmx0 = ((BMxy & 0xFFFF) + bmdxx*(curx - startX) - bmdxy*startY) & 16382;
-	int bmdyy = (BMdy >> 16);
-	int bmdyx = (BMdx >> 16);
-	int bmy0 = ((BMxy >> 16) + bmdyx*(curx - startX) - bmdyy*startY) & 16382;
-	int bmstart = bmx0 + (bmy0 << 16);//BMxy-BMdx*(curx-startX)-BMdy*startY;
-	int	fogstart = CurFog + FogDx*(curx - startX) - FogDy*startY;
-	__asm {
-		push	edi
-		push	esi
-		pushf
-		mov		esi, offset VertBuf
-		mov		ecx, NLines
-		mov		bx, curx
-		mov		edi, bmstart
-		per1 : mov		bx, curx
-			   mov		dx, [esi]
-			   mov		ax, [esi + 2]
-			   cmp		ax, 0xFFFF
-			   jne		per2
-			   mov		ax, dx
-			   per2 : cmp		dx, ax
-					  jb		per3
-					  xchg	dx, ax	//now dx<=ax
-					  per3 : sub		ax, dx
-							 mov[esi + 2], ax  //now ax is free
-							 cmp		dx, bx		//dx=x1,bx=curx
-							 je		x1eqCurx
-							 jae		x1moreCurx
-							 //need to move left,x1<curx
-							 mov		ax, bx
-							 sub		ax, dx
-							 mov		ebx, fogstart
-							 per4 : sub		edi, BMdx
-									//and     edi,00111111111111110011111111111111b
-									sub		ebx, FogDx
-									dec		ax
-									jnz		per4
-									mov		fogstart, ebx
-									jmp		PrepareToNextLine
-									x1moreCurx :
-		mov		ax, dx
-			sub		ax, bx
-			mov		ebx, fogstart
-			per5 : add		edi, BMdx
-			//and     edi,00111111111111110011111111111111b
-			add		ebx, FogDx
-			dec		ax
-			jnz		per5
-			mov		fogstart, ebx
-			x1eqCurx :
-	PrepareToNextLine:
-		mov		ebx, fogstart
-			mov[esi + 12], ebx
-			add		ebx, FogDy
-			mov		fogstart, ebx
-			mov		bx, curx
-			mov		curx, dx
-			sub		dx, bx
-			mov[esi], dx
-			mov[esi + 8], edi
-			add		edi, BMdy   //edi=BMxy
-			//and     edi,00111111111111110011111111111111b
-			add		esi, 16
-			dec		ecx
-			jnz		per1
-			popf
-			pop		esi
-			pop		edi
-	};
-	//Now we are ready to render trrriangle !!!!!!!!!!!!
-	return true;
-};
+
 void addLine(int x, int y) {
 	int sdx;
 	int sdy = 16;
 	int dy = abs(y - curYT) + 1;
 	if (y < curYT)sdy = -16;
 	if (y != curYT) sdx = div((x - curXT) << 16, abs(y - curYT)).quot;
-	__asm {
-		push	edi
-		push	esi
-		pushf
-		mov		ebx, curYT
-		mov		ecx, dy
-		mov		eax, sdx
-		mov		edi, sdy
-		shl		ebx, 4
-		add		ebx, offset VertBuf
-		mov		esi, curXT
-		shl		esi, 16
-		add		esi, 32768
-		lp1:	mov		edx, esi
-				shr		edx, 16
-				cmp		word ptr[ebx], 0xFFFF
-				jne		lp2
-				mov[ebx], dx
-				lp3 : add		esi, eax
-					  add		ebx, edi
-					  dec		ecx
-					  jnz		lp1
-					  jmp		lp_end
-					  lp7 : cmp		dx, word ptr[ebx]
-							je		lp3
-							cmp		dx, word ptr[ebx + 2]
-							je		lp3
-							mov[ebx + 2], dx
-							add		esi, eax
-							add		ebx, edi
-							dec		ecx
-							jnz		lp1
-							lp2 : cmp		word ptr[ebx + 2], 0xFFFF
-								  jne		lp7
-								  mov[ebx + 2], dx
-								  add		esi, eax
-								  add		ebx, edi
-								  dec		ecx
-								  jnz		lp1
-								  lp_end : popf
-										   pop		esi
-										   pop		edi
+	// BoonXRay 04.08.2017	
+	//__asm 
+	{
+		//push	edi
+		//push	esi
+		//pushf
+		//mov		ebx, curYT
+		unsigned int TmpEBX = curYT;
+		//mov		ecx, dy
+		unsigned int TmpECX = dy;
+		//mov		eax, sdx
+		unsigned int TmpEAX = sdx;
+		//mov		edi, sdy
+		unsigned int TmpEDI = sdy;
+		//shl		ebx, 4
+		TmpEBX <<= 4;
+		//add		ebx, offset VertBuf
+		TmpEBX += reinterpret_cast<unsigned int>(VertBuf);
+		//mov		esi, curXT
+		unsigned int TmpESI = curXT;
+		//shl		esi, 16
+		TmpESI <<= 16;
+		//add		esi, 32768
+		TmpESI += 32768;
+		unsigned int TmpEDX = 0;
+		unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+	lp1:	
+		//mov		edx, esi
+		TmpEDX = TmpESI;
+		//shr		edx, 16
+		TmpEDX >>= 16;
+		//cmp		word ptr[ebx], 0xFFFF
+		//jne		lp2
+		if (*reinterpret_cast<unsigned short *>(TmpEBX) != 0xFFFF) goto lp2;
+		//mov[ebx], dx
+		*reinterpret_cast<unsigned short *>(TmpEBX) = TmpDX;
+	lp3 : 
+		//add		esi, eax
+		TmpESI += TmpEAX;
+		//add		ebx, edi
+		TmpEBX += TmpEDI;
+		//dec		ecx
+		TmpECX--;
+		//jnz		lp1
+		if (TmpECX != 0) goto lp1;
+		//jmp		lp_end
+		goto lp_end;
+	lp7 : 
+		//cmp		dx, word ptr[ebx]
+		//je		lp3
+		if (TmpDX == *reinterpret_cast<unsigned short *>(TmpEBX)) goto lp3;
+		//cmp		dx, word ptr[ebx + 2]
+		//je		lp3
+		if (TmpDX == *reinterpret_cast<unsigned short *>(TmpEBX + 2)) goto lp3;
+		//mov[ebx + 2], dx
+		*reinterpret_cast<unsigned short *>(TmpEBX + 2) = TmpDX;
+		//add		esi, eax
+		TmpESI += TmpEAX;
+		//add		ebx, edi
+		TmpEBX += TmpEDI;
+		//dec		ecx
+		TmpECX--;
+		//jnz		lp1
+		if (TmpECX != 0) goto lp1;
+	lp2 : 
+		//cmp		word ptr[ebx + 2], 0xFFFF
+		//jne		lp7
+		if (*reinterpret_cast<unsigned short *>(TmpEBX + 2)!= 0xFFFF) goto lp7;
+		//mov[ebx + 2], dx
+		*reinterpret_cast<unsigned short *>(TmpEBX + 2) = TmpDX;
+		//add		esi, eax
+		TmpESI += TmpEAX;
+		//add		ebx, edi
+		TmpEBX += TmpEDI;
+		//dec		ecx
+		TmpECX--;
+		//jnz		lp1
+		if (TmpECX != 0) goto lp1;
+	lp_end : 
+		//popf
+		//pop		esi
+		//pop		edi
+		;
 	};
+
 	curXT = x;
 	curYT = y;
-};
-//RENDERING THE TRIANGLE. 
-//It is really important. Before this oeration
-//VertBuf must be filled by values of x1,Lx,BMxy,Fog
-//OUTPUT:
-// word  NLines
-// For every line:
-// word  Dx
-// short Lx 
-// byte  data[Lx]
-// ...
-int BPtemp;
-void RenderTriangle64(int NLines, byte* Dest, byte* Bitmap) {
-	((word*)Dest)[0] = NLines;
-	int Startscan;
-	int ScanSize;
-	int VertPos;
-	((int*)Dest)[1] = OffsetX;
-	((int*)Dest)[2] = OffsetY;
-	int VBpos = int(VertBuf);
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		esi, Bitmap
-		mov		edi, Dest
-		add		edi, 12
-		mov		ebx, VBpos
-		cld
-		StartLine :
-		//Rendering the linear transformation
-		mov		ecx, [ebx]
-			mov[edi], ecx
-			add		edi, 4     //edi points to Dest
-			shr		ecx, 16    //Length of the scan line
-			mov		ScanSize, ecx
-			mov		Startscan, edi  //Storing for shadowing
-			mov		edx, [ebx + 8]    //BMxy
-			mov		VertPos, ebx
-			mov		ebx, BMdx
-			//and     ebx,0011 1111 1111 1110 0011 1111 1111 1110b
-			jcxz	StartShad
-			StartLinear :
-		mov		eax, edx     //1
-			shr		eax, 16      //1
-			mov		al, dh       //1
-			mov		al, [esi + eax]//?
-			add		edx, ebx     //0
-			dec		cx          //0
-			stosb               //0  could be optimized to stosd
-			jnz		StartLinear //1
-	//Shadow processing
-			StartShad :
-		xchg	edi, Startscan
-			mov		esi, VertPos
-			mov		ecx, ScanSize
-			mov		ebx, [esi + 12]   //fog
-			mov		edx, FogDx
-			//mov		edi,Startscan
-			jcxz	endfog
-			StartFog4 :      //Not optimal now! 32 bit reading coulde performed
-		mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jnz		StartFog4
-			endfog : mov		edi, Startscan
-			mov		ebx, esi
-			mov		esi, Bitmap
-			add		ebx, 16
-			dec		NLines
-			jnz		StartLine
-			popf
-			pop		esi
-			pop		edi
-	};
 };
 int GetMax(int z1, int z2, int z3) {
 	if (z1 > z2) {
@@ -310,89 +178,7 @@ int GetMin(int z1, int z2, int z3) {
 		else return z2;
 	};
 };
-void PreRenderTri64(int x1, int y1,
-	int x2, int y2,
-	int x3, int y3,
-	int bmxy, int bmdx,
-	int bmdy, int fog, int fogdx, int fogdy,
-	byte* bitm,
-	byte* Dest) {
-	int z1 = GetMin(y1, y2, y3);
-	int z2 = GetMax(y1, y2, y3);
-	curScrOfs = x1 + y1*Buf3DLx;
-	CurFog = fog;
-	curXT = x1;
-	curYT = y1 - z1;
-	FogDx = fogdx;
-	FogDy = fogdy;
-	BMxy = bmxy;
-	BMdx = bmdx;
-	BMdy = bmdy;
-	int VBpos = int(VertBuf);
-	//Инициализация VertBuf
-	__asm {
-		push	edi
-		pushf
-		cld
-		mov		edi, VBpos
-		mov		ecx, z2
-		sub		ecx, z1
-		inc		ecx
-		uux1 : mov		dword ptr[edi], 0xFFFFFFFF;
-		add		edi, 16
-			dec		ecx
-			jnz		uux1
-			popf
-			pop		edi
-	};
-	addLine(x2, y2 - z1);
-	addLine(x3, y3 - z1);
-	addLine(x1, y1 - z1);
-	PrepareToRender(z2 - z1 + 1, x1, y1 - z1);
-	RenderTriangle64(z2 - z1 + 1, Dest, bitm);
-};
-void ShowTriangle(int x, int y, byte* data) {
-	int dx = ((int*)data)[1];
-	int dy = ((int*)data)[2];
-	int ofst = int(ScreenPtr) + (y + dy)*ScrWidth + x - dx;
-	int dofs = int(data);
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		edi, ofst
-		mov		esi, dofs
-		cld
-		mov		bx, [esi]
-		add		esi, 12
-		xor ecx, ecx
-		xor		eax, eax
-		lpp1 :	//mov		TempDI,edi
-		xor		eax, eax
-			mov		ax, [esi]
-			test	ax, 8000h
-			jz		uu1
-			or eax, 0xFFFF0000
-			uu1 :
-			add		edi, eax
-			mov		cx, [esi + 2]
-			add		esi, 4
-			mov		edx, ecx
-			shr		ecx, 2
-			rep		movsd
-			mov		ecx, edx
-			and		ecx, 3
-			rep		movsb
-			//mov		edi,TempDI
-			sub		edi, edx
-			add		edi, ScrWidth
-			dec		bx
-			jnz		lpp1
-			popf
-			pop		edi
-			pop		esi
-	};
-};
+
 void ShowClippedTriangle(int x, int y, byte* data) {
 	int dx = ((int*)data)[1];
 	int dy = ((int*)data)[2];
@@ -407,24 +193,40 @@ void ShowClippedTriangle(int x, int y, byte* data) {
 		if (NY <= rdy)return;
 		NY -= rdy;
 		y1 = WindY;
-		__asm {
-			mov		ecx, rdy
-			mov		ebx, realof
-			mov		edx, DOfst
-			lopp1 : mov		ax, [ebx]
-					movsx	eax, ax
-					add		edx, eax
-					xor		eax, eax
-					mov		ax, [ebx + 2]
-					add		ebx, eax
-					add		ebx, 4
-					dec		ecx
-					jnz		lopp1
-					//test	dx,0x8000
-					//jz		lopp2
-					//or		edx,0xFFFF0000
-					mov		DOfst, edx
-					mov		realof, ebx
+		// BoonXRay 04.08.2017
+		//__asm 
+		{
+			//mov		ecx, rdy
+			unsigned int TmpECX = rdy;
+			//mov		ebx, realof
+			unsigned int TmpEBX = realof;
+			//mov		edx, DOfst
+			unsigned int TmpEDX = DOfst;
+			unsigned int TmpEAX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+		lopp1 : 
+			//mov		ax, [ebx]
+			TmpAX = *reinterpret_cast<unsigned short *>(TmpEBX);
+			//movsx	eax, ax
+			TmpEAX = static_cast<signed short>(TmpAX);
+			//add		edx, eax
+			TmpEDX += TmpEAX;
+			//xor		eax, eax
+			TmpEAX = 0;
+			//mov		ax, [ebx + 2]
+			TmpAX = *reinterpret_cast<unsigned short *>(TmpEBX + 2);
+			//add		ebx, eax
+			TmpEBX += TmpEAX;
+			//add		ebx, 4
+			TmpEBX += 4;
+			//dec		ecx
+			TmpECX--;
+			//jnz		lopp1
+			if (TmpECX != 0) goto lopp1;
+			//mov		DOfst, edx
+			DOfst = TmpEDX;
+			//mov		realof, ebx
+			realof = TmpEBX;
 		};
 	};
 	if (y1 + NY > WindY1)NY = WindY1 - y1 + 1;
@@ -434,232 +236,123 @@ void ShowClippedTriangle(int x, int y, byte* data) {
 	int MinOfst = int(ScreenPtr) + y1*ScrWidth + WindX;
 	int MaxOfst = MinOfst + WindLx;
 	int  FinalESI;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		edi, ofst
-		add		edi, DOfst
-		mov		esi, dofs
-		cld
-		mov		bx, word ptr NY
-		mov		esi, realof
-		xor		ecx, ecx
-		xor		eax, eax
-		lpp1 :	//mov		TempDI,edi
-		xor		eax, eax
-			mov		ax, [esi]
-			test	ax, 8000h
-			jz		uu1
-			or eax, 0xFFFF0000
-			uu1 :
-			add		edi, eax
-			xor		ecx, ecx
-			mov		cx, [esi + 2]
-			add		esi, 4
-			mov		FinalESI, esi
-			add		FinalESI, ecx
-			mov		edx, ecx
-			add		edx, edi
-			mov		TempDI, edi
-			cmp		edi, MinOfst
-			jae		uuu3
-			sub		edi, MinOfst
-			sub		esi, edi
-			mov		edi, MinOfst
-			uuu3 : cmp		edx, MaxOfst
-			jbe		uuu4
+	// BoonXRay 04.08.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		edi, ofst
+		unsigned int TmpEDI = ofst;
+		//add		edi, DOfst
+		TmpEDI += DOfst;
+		//mov		esi, dofs
+		unsigned int TmpESI = dofs;
+		//cld
+		//mov		bx, word ptr NY
+		//unsigned short TmpBX = *reinterpret_cast<unsigned short *>(NY);
+		unsigned short TmpBX = static_cast<unsigned short>(NY);
+		//mov		esi, realof
+		TmpESI = realof;
+		//xor		ecx, ecx
+		//xor		eax, eax
+		unsigned int TmpEAX = 0, TmpECX = 0, TmpEDX = 0;
+		unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+	lpp1 :	
+		//xor		eax, eax
+		TmpEAX = 0;
+		//mov		ax, [esi]
+		TmpAX = *reinterpret_cast<unsigned short *>(TmpESI);
+		//test	ax, 8000h
+		//jz		uu1
+		if ((TmpAX & 0x8000) == 0) goto uu1;
+		//or eax, 0xFFFF0000
+		TmpEAX |= 0xFFFF0000;
+	uu1 :
+		//add		edi, eax
+		TmpEDI += TmpEAX;
+		//xor		ecx, ecx
+		TmpECX = 0;
+		//mov		cx, [esi + 2]
+		TmpCX = *reinterpret_cast<unsigned short *>(TmpESI + 2);
+		//add		esi, 4
+		TmpESI += 4;
+		//mov		FinalESI, esi
+		FinalESI = TmpESI;
+		//add		FinalESI, ecx
+		FinalESI += TmpECX;
+		//mov		edx, ecx
+		TmpEDX = TmpECX;
+		//add		edx, edi
+		TmpEDX += TmpEDI;
+		//mov		TempDI, edi
+		TempDI = TmpEDI;
+		//cmp		edi, MinOfst
+		//jae		uuu3
+		if (static_cast<int>(TmpEDI) >= MinOfst) goto uuu3;
+		//sub		edi, MinOfst
+		TmpEDI -= MinOfst;
+		//sub		esi, edi
+		TmpESI -= TmpEDI;
+		//mov		edi, MinOfst
+		TmpEDI = MinOfst;
+	uuu3 : 
+		//cmp		edx, MaxOfst
+		//jbe		uuu4
+		if (static_cast<int>(TmpEDX) <= MaxOfst) goto uuu4;
 
-			mov		edx, MaxOfst
-			uuu4 : sub		edx, edi
-			mov		ecx, edx
-			cmp		ecx, 0
-			jle		ttr
-			shr		ecx, 2
-			rep		movsd
-			mov		ecx, edx
-			and		ecx, 3
-			rep		movsb
-			ttr :
-		mov		esi, FinalESI
-			mov		edi, TempDI
-			//sub		edi,edx
-			add		edi, ScrWidth
-			mov		eax, MinOfst
-			add		eax, ScrWidth
-			mov		MinOfst, eax
-			mov		eax, MaxOfst
-			add		eax, ScrWidth
-			mov		MaxOfst, eax
-			dec		bx
-			jnz		lpp1
-			popf
-			pop		edi
-			pop		esi
+		//mov		edx, MaxOfst
+		TmpEDX = MaxOfst;
+	uuu4 :
+		//sub		edx, edi
+		TmpEDX -= TmpEDI;
+		//mov		ecx, edx
+		TmpECX = TmpEDX;
+		//cmp		ecx, 0
+		//jle		ttr
+		if (static_cast<int>(TmpECX) <= 0) goto ttr;
+		//shr		ecx, 2
+		TmpECX >>= 2;
+		//rep		movsd
+		for (unsigned int i = 0; i < TmpECX; i++, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+			*reinterpret_cast<int *>(TmpEDI) = *reinterpret_cast<int *>(TmpESI);
+		//mov		ecx, edx
+		TmpECX = TmpEDX;
+		//and		ecx, 3
+		TmpECX &= 3;
+		//rep		movsb
+		for (unsigned int i = 0; i < TmpECX; i++, TmpESI++, TmpEDI++)
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+	ttr :
+		//mov		esi, FinalESI
+		TmpESI = FinalESI;
+		//mov		edi, TempDI
+		TmpEDI = TempDI;
+		//add		edi, ScrWidth
+		TmpEDI += ScrWidth;
+		//mov		eax, MinOfst
+		TmpEAX = MinOfst;
+		//add		eax, ScrWidth
+		TmpEAX += ScrWidth;
+		//mov		MinOfst, eax
+		MinOfst = TmpEAX;
+		//mov		eax, MaxOfst
+		TmpEAX = MaxOfst;
+		//add		eax, ScrWidth
+		TmpEAX += ScrWidth;
+		//mov		MaxOfst, eax
+		MaxOfst = TmpEAX;
+		//dec		bx
+		TmpBX--;
+		//jnz		lpp1
+		if (TmpBX != 0) goto lpp1;
+		//popf
+		//pop		edi
+		//pop		esi
 	};
 };
-void ShowClippedTriangleMMX(int x, int y, byte* data) {
-	int dx = ((int*)data)[1];
-	int dy = ((int*)data)[2];
-	int x1 = x + dx;
-	int y1 = y + dy;
-	int dofs = int(data);
-	int realof = dofs + 12;
-	int NY = (((int*)data)[0]) & 65535;
-	int DOfst = 0;
-	if (y1 < WindY) {
-		int rdy = WindY - y1;
-		if (NY <= rdy)return;
-		NY -= rdy;
-		y1 = WindY;
-		__asm {
-			mov		ecx, rdy
-			mov		ebx, realof
-			mov		edx, DOfst
-			lopp1 : mov		ax, [ebx]
-					movsx	eax, ax
-					add		edx, eax
-					xor		eax, eax
-					mov		ax, [ebx + 2]
-					add		ebx, eax
-					add		ebx, 4
-					dec		ecx
-					jnz		lopp1
-					//test	dx,0x8000
-					//jz		lopp2
-					//or		edx,0xFFFF0000
-					mov		DOfst, edx
-					mov		realof, ebx
-		};
-	};
-	if (y1 + NY >= WindY1)NY = WindY1 - y1 + 1;
-	if (NY <= 0)return;
-	int ofst = int(ScreenPtr) + y1*ScrWidth + x - dx;
-	int TempDI;
-	int MinOfst = int(ScreenPtr) + y1*ScrWidth + WindX;
-	int MaxOfst = MinOfst + WindLx;
-	int  FinalESI;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		edi, ofst
-		add		edi, DOfst
-		mov		esi, dofs
-		cld
-		mov		bx, word ptr NY
-		mov		esi, realof
-		xor		ecx, ecx
-		xor		eax, eax
-		lpp1 :	//mov		TempDI,edi
-		xor		eax, eax
-			mov		ax, [esi]
-			test	ax, 8000h
-			jz		uu1
-			or eax, 0xFFFF0000
-			uu1 :
-			add		edi, eax
-			xor		ecx, ecx
-			mov		cx, [esi + 2]
-			add		esi, 4
-			mov		FinalESI, esi
-			add		FinalESI, ecx
-			mov		edx, ecx
-			add		edx, edi
-			mov		TempDI, edi
-			cmp		edi, MinOfst
-			jae		uuu3
-			sub		edi, MinOfst
-			sub		esi, edi
-			mov		edi, MinOfst
-			uuu3 : cmp		edx, MaxOfst
-			jbe		uuu4
 
-			mov		edx, MaxOfst
-			uuu4 : sub		edx, edi
-			mov		ecx, edx
-			cmp		ecx, 0
-			jle		ttr
-			shr		ecx, 3
-			jcxz	noMMX
-			MMXLoop :
-		movq	mm1, [esi]
-			add		esi, 8
-			movq[edi], mm1
-			add		edi, 8
-			dec		cx
-			jnz		MMXLoop
-			//		rep		movsd
-			noMMX :
-		mov		ecx, edx
-			and		ecx, 7
-			rep		movsb
-			ttr :
-		mov		esi, FinalESI
-			mov		edi, TempDI
-			//sub		edi,edx
-			add		edi, ScrWidth
-			mov		eax, MinOfst
-			add		eax, ScrWidth
-			mov		MinOfst, eax
-			mov		eax, MaxOfst
-			add		eax, ScrWidth
-			mov		MaxOfst, eax
-			dec		bx
-			jnz		lpp1
-			popf
-			pop		edi
-			pop		esi
-			EMMS
-	};
-};
-//--------------------------------------------------------------
-void RenderSmartTriangle64(int xs1, int ys1,
-	int xs2, int ys2,
-	int xs3, int ys3,
-	int xb1, int yb1,
-	int xb2, int yb2,
-	int xb3, int yb3,
-	int f1, int f2, int f3,
-	byte * Dest, byte* Bitm) {
-	int dxb2 = xb2 - xb1;
-	int dxb3 = xb3 - xb1;
-	int dyb2 = yb2 - yb1;
-	int dyb3 = yb3 - yb1;
-	int dxs2 = xs2 - xs1;
-	int dxs3 = xs3 - xs1;
-	int dys2 = ys2 - ys1;
-	int dys3 = ys3 - ys1;
-
-	int D = dxs2*dys3 - dys2*dxs3;
-	if (!D) {
-		Dest = NULL;
-		return;
-	};
-	int Axx = dys3*dxb2 - dxb3*dys2;
-	int Axy = dxs2*dxb3 - dxb2*dxs3;
-	int Ayx = dys3*dyb2 - dyb3*dys2;
-	int Ayy = dxs2*dyb3 - dyb2*dxs3;
-
-	Axx = div(Axx << 8, D).quot;
-	Ayy = div(Ayy << 8, D).quot;
-	Axy = div(Axy << 8, D).quot;
-	Ayx = div(Ayx << 8, D).quot;
-	int bmxy = ((xb1 & 63) << 8) + ((yb1 & 63) << 24);
-	int bmdx = word(Axx) + (word(Ayx) << 16);
-	int bmdy = word(Axy) + (word(Ayy) << 16);
-	//Fogging
-	int DScr = dys2*dxs3 - dxs2*dys3;
-	int FDx = 0;
-	int FDy = 0;
-	if (DScr) {
-		FDx = div((f3*dys2 - dys3*f2) << 16, DScr).quot;
-		FDy = div((f2*dxs3 - dxs2*f3) << 16, DScr).quot;
-	};
-	PreRenderTri64(xs1, ys1, xs2, ys2, xs3, ys3, bmxy, bmdx, bmdy, f1 << 16, FDx, FDy,
-		Bitm, Dest);
-
-};
 //----------SLOW, BUT PRECISE VARIANT OF 3D GRAPHICS------------
 int BMX;
 int BMY;
@@ -674,21 +367,36 @@ static int	fogstart;
 static word curx;
 static int FOG1;
 bool PrecPrepareToRender(int NLines, int startX, int startY) {
-	__asm {
-		mov		ax, VertBuf[0]
-		mov		bx, VertBuf[2]
-		cmp		ax, 0xFFFF
-		je		uu1
-		cmp		bx, 0xFFFF
-		je		uu3
-		cmp		ax, bx
-		jb		uu3
-		mov		curx, bx
-		jmp		uu5
-		uu3 : mov		curx, ax
-			  jmp		uu5
-			  uu1 : mov		curx, 0xFFFF
-					uu5 :
+	// BoonXRay 05.08.2017
+	//__asm 
+	{
+		//mov		ax, VertBuf[0]
+		unsigned short TmpAX = VertBuf[0];
+		//mov		bx, VertBuf[2]
+		unsigned short TmpBX = VertBuf[2];
+		//cmp		ax, 0xFFFF
+		//je		uu1
+		if (TmpAX == 0xFFFF) goto uu1;
+		//cmp		bx, 0xFFFF
+		//je		uu3
+		if (TmpBX == 0xFFFF) goto uu3;
+		//cmp		ax, bx
+		//jb		uu3
+		if (TmpAX < TmpBX) goto uu3;
+		//mov		curx, bx
+		curx = TmpBX;
+		//jmp		uu5
+		goto uu5;
+	uu3 : 
+		//mov		curx, ax
+		curx = TmpAX;
+		//jmp		uu5
+		goto uu5;
+	uu1 : 
+		//mov		curx, 0xFFFF
+		curx = 0xFFFF;
+	uu5 :
+		;
 	};
 	OffsetX = -curx + startX;
 	OffsetY = -startY;
@@ -696,97 +404,173 @@ bool PrecPrepareToRender(int NLines, int startX, int startY) {
 	BMXStart = BMX + BMDXX*(curx - startX) - BMDXY*startY;
 	BMYStart = BMY + BMDYX*(curx - startX) - BMDYY*startY;
 	fogstart = FOG1 + FogDx*(curx - startX) - FogDy*startY;
-	__asm {
-		push	edi
-		push	esi
-		pushf
-		mov		esi, offset VertBuf
-		mov		ecx, NLines
-		mov		bx, curx
-		mov		edi, BMXStart
-		mov		TempEBP, EBP
-		mov		ebp, BMYStart
-		per1 : mov		bx, curx
-			   mov		dx, [esi]
-			   mov		ax, [esi + 2]
-			   cmp		ax, 0xFFFF
-			   jne		per2
-			   mov		ax, dx
-			   per2 : cmp		dx, ax
-					  jb		per3
-					  xchg	dx, ax	//now dx<=ax
-					  per3 : sub		ax, dx
-							 mov[esi + 2], ax  //now ax is free
-							 cmp		dx, bx		//dx=x1,bx=curx
-							 je		x1eqCurx
-							 jae		x1moreCurx
-							 //need to move left,x1<curx
-							 mov		ax, bx
-							 sub		ax, dx
-							 mov		ebx, fogstart
-							 per4 : sub		edi, BMDXX
-									sub		ebp, BMDYX
-									//and     edi,00111111111111110011111111111111b
-									sub		ebx, FogDx
-									dec		ax
-									jnz		per4
-									mov		fogstart, ebx
-									jmp		PrepareToNextLine
-									x1moreCurx :
-		mov		ax, dx
-			sub		ax, bx
-			mov		ebx, fogstart
-			per5 : add		edi, BMDXX
-			add		ebp, BMDYX
-			//and     edi,00111111111111110011111111111111b
-			add		ebx, FogDx
-			dec		ax
-			jnz		per5
-			mov		fogstart, ebx
-			x1eqCurx :
+	// BoonXRay 05.08.2017
+	//__asm 
+	{
+		//push	edi
+		//push	esi
+		//pushf
+		//mov		esi, offset VertBuf
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(VertBuf);
+		//mov		ecx, NLines
+		unsigned int TmpECX = NLines;
+		//mov		bx, curx
+		unsigned int TmpEAX = 0, TmpEBX = 0;
+		unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+		unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+		TmpBX = curx;
+		//mov		edi, BMXStart
+		unsigned int TmpEDI = BMXStart;
+		//mov		TempEBP, EBP
+		//mov		ebp, BMYStart
+		unsigned int TmpEBP = BMYStart;
+		unsigned short TmpDX = 0;
+	per1 : 
+		//mov		bx, curx
+		TmpBX = curx;
+		//mov		dx, [esi]
+		TmpDX = *reinterpret_cast<unsigned short *>(TmpESI);
+		//mov		ax, [esi + 2]
+		TmpAX = *reinterpret_cast<unsigned short *>(TmpESI+2);
+		//cmp		ax, 0xFFFF
+		//jne		per2
+		if (TmpAX != 0xFFFF) goto per2;
+		//mov		ax, dx
+		TmpAX = TmpDX;
+	per2 : 
+		//cmp		dx, ax
+		//jb		per3
+		if (TmpDX < TmpAX) goto per3;
+		//xchg	dx, ax	//now dx<=ax
+		unsigned short TmpUShort = TmpAX;
+		TmpAX = TmpDX;
+		TmpDX = TmpUShort;
+	per3 : 
+		//sub		ax, dx
+		TmpAX -= TmpDX;
+		//mov[esi + 2], ax  //now ax is free
+		*reinterpret_cast<unsigned short *>(TmpESI + 2) = TmpAX;
+		//cmp		dx, bx		//dx=x1,bx=curx
+		//je		x1eqCurx
+		if (TmpDX == TmpBX) goto x1eqCurx;
+		//jae		x1moreCurx
+		if (TmpDX >= TmpBX) goto x1moreCurx;
+		//need to move left,x1<curx
+		//mov		ax, bx
+		TmpAX = TmpBX;
+		//sub		ax, dx
+		TmpAX -= TmpDX;
+		//mov		ebx, fogstart
+		TmpEBX = fogstart;
+	per4 : 
+		//sub		edi, BMDXX
+		TmpEDI -= BMDXX;
+		//sub		ebp, BMDYX
+		TmpEBP -= BMDYX;
+		//sub		ebx, FogDx
+		TmpEBX -= FogDx;
+		//dec		ax
+		TmpAX--;
+		//jnz		per4
+		if (TmpAX != 0) goto per4;
+		//mov		fogstart, ebx
+		fogstart = TmpEBX;
+		//jmp		PrepareToNextLine
+		goto PrepareToNextLine;
+	x1moreCurx :
+		//mov		ax, dx
+		TmpAX = TmpDX;
+		//sub		ax, bx
+		TmpAX -= TmpBX;
+		//mov		ebx, fogstart
+		TmpEBX = fogstart;
+	per5 : 
+		//add		edi, BMDXX
+		TmpEDI += BMDXX;
+		//add		ebp, BMDYX
+		TmpEBP += BMDYX;
+		//add		ebx, FogDx
+		TmpEBX += FogDx;
+		//dec		ax
+		TmpAX--;
+		//jnz		per5
+		if (TmpAX != 0) goto per5;
+		//mov		fogstart, ebx
+		fogstart = TmpEBX;
+	x1eqCurx :
 	PrepareToNextLine:
-		mov		ebx, fogstart
-			mov[esi + 12], ebx
-			add		ebx, FogDy
-			mov		fogstart, ebx
-			mov		bx, curx
-			mov		curx, dx
-			sub		dx, bx
-			mov[esi], dx
-			mov[esi + 4], edi
-			mov[esi + 8], ebp
-			add		edi, BMDXY   //edi=BMxy
-			add		ebp, BMDYY
-			//and     edi,00111111111111110011111111111111b
-			add		esi, 16
-			dec		ecx
-			jnz		per1
-			mov		EBP, TempEBP
-			popf
-			pop		esi
-			pop		edi
+		//mov		ebx, fogstart
+		TmpEBX = fogstart;
+		//mov[esi + 12], ebx
+		*reinterpret_cast<unsigned int *>(TmpESI + 12) = TmpEBX;
+		//add		ebx, FogDy
+		TmpEBX += FogDy;
+		//mov		fogstart, ebx
+		fogstart = TmpEBX;
+		//mov		bx, curx
+		TmpBX = curx;
+		//mov		curx, dx
+		curx = TmpDX;
+		//sub		dx, bx
+		TmpDX -= TmpBX;
+		//mov[esi], dx
+		*reinterpret_cast<unsigned short *>(TmpESI) = TmpDX;
+		//mov[esi + 4], edi
+		*reinterpret_cast<unsigned int *>(TmpESI + 4) = TmpEDI;
+		//mov[esi + 8], ebp
+		*reinterpret_cast<unsigned int *>(TmpESI + 8) = TmpEBP;
+		//add		edi, BMDXY   //edi=BMxy
+		TmpEDI += BMDXY;	//edi=BMxy
+		//add		ebp, BMDYY
+		TmpEBP += BMDYY;
+		//add		esi, 16
+		TmpESI += 16;
+		//dec		ecx
+		TmpECX--;
+		//jnz		per1
+		if (TmpECX != 0) goto per1;
+		//mov		EBP, TempEBP
+		//popf
+		//pop		esi
+		//pop		edi
 	};
 	//Now we are ready to render trrriangle !!!!!!!!!!!!
 	return true;
 };
 static word STRTX;
 bool AbsolutePrecPrepareToRender(int NLines, int startX, int startY) {
-	__asm {
-		mov		ax, VertBuf[0]
-		mov		bx, VertBuf[2]
-		cmp		ax, 0xFFFF
-		je		uu1
-		cmp		bx, 0xFFFF
-		je		uu3
-		cmp		ax, bx
-		jb		uu3
-		mov		curx, bx
-		jmp		uu5
-		uu3 : mov		curx, ax
-			  jmp		uu5
-			  uu1 : mov		curx, 0xFFFF
-					uu5 :
+	// BoonXRay 05.08.2017
+	//__asm 
+	{
+		//mov		ax, VertBuf[0]
+		unsigned short TmpAX = VertBuf[0];
+		//mov		bx, VertBuf[2]
+		unsigned short TmpBX = VertBuf[2];
+		//cmp		ax, 0xFFFF
+		//je		uu1
+		if (TmpAX == 0xFFFF) goto uu1;
+		//cmp		bx, 0xFFFF
+		//je		uu3
+		if (TmpBX == 0xFFFF) goto uu3;
+		//cmp		ax, bx
+		//jb		uu3
+		if (TmpAX < TmpBX) goto uu3;
+		//mov		curx, bx
+		curx = TmpBX;
+		//jmp		uu5
+		goto uu5;
+	uu3:
+		//mov		curx, ax
+		curx = TmpAX;
+		//jmp		uu5
+		goto uu5;
+	uu1:
+		//mov		curx, 0xFFFF
+		curx = 0xFFFF;
+	uu5:
+		;
 	};
+
 	STRTX = startX;
 	OffsetX = -curx + startX;
 	OffsetY = -startY;
@@ -794,241 +578,144 @@ bool AbsolutePrecPrepareToRender(int NLines, int startX, int startY) {
 	BMXStart = BMX + BMDXX*(curx - startX) - BMDXY*startY;
 	BMYStart = BMY + BMDYX*(curx - startX) - BMDYY*startY;
 	fogstart = FOG1 + FogDx*(curx - startX) - FogDy*startY;
-	__asm {
-		push	edi
-		push	esi
-		pushf
-		mov		esi, offset VertBuf
-		mov		ecx, NLines
-		mov		bx, curx
-		mov		edi, BMXStart
-		mov		TempEBP, EBP
-		mov		ebp, BMYStart
-		per1 : mov		bx, curx
-			   mov		dx, [esi]
-			   mov		ax, [esi + 2]
-			   cmp		ax, 0xFFFF
-			   jne		per2
-			   mov		ax, dx
-			   per2 : cmp		dx, ax
-					  jb		per3
-					  xchg	dx, ax	//now dx<=ax
-					  per3 : sub		ax, dx
-							 mov[esi + 2], ax  //now ax is free
-							 cmp		dx, bx		//dx=x1,bx=curx
-							 je		x1eqCurx
-							 jae		x1moreCurx
-							 //need to move left,x1<curx
-							 mov		ax, bx
-							 sub		ax, dx
-							 mov		ebx, fogstart
-							 per4 : sub		edi, BMDXX
-									sub		ebp, BMDYX
-									//and     edi,00111111111111110011111111111111b
-									sub		ebx, FogDx
-									dec		ax
-									jnz		per4
-									mov		fogstart, ebx
-									jmp		PrepareToNextLine
-									x1moreCurx :
-		mov		ax, dx
-			sub		ax, bx
-			mov		ebx, fogstart
-			per5 : add		edi, BMDXX
-			add		ebp, BMDYX
-			//and     edi,00111111111111110011111111111111b
-			add		ebx, FogDx
-			dec		ax
-			jnz		per5
-			mov		fogstart, ebx
-			x1eqCurx :
+	// BoonXRay 05.08.2017
+	//__asm 
+	{
+		//push	edi
+		//push	esi
+		//pushf
+		//mov		esi, offset VertBuf
+		//mov		ecx, NLines
+		//mov		bx, curx
+		//mov		edi, BMXStart
+		//mov		TempEBP, EBP
+		//mov		ebp, BMYStart
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(VertBuf);
+		unsigned int TmpECX = NLines;
+		unsigned int TmpEBX = 0;
+		unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+		TmpBX = curx;
+		unsigned int TmpEDI = BMXStart;
+		unsigned int TmpEBP = BMYStart;
+		unsigned short TmpAX = 0, TmpDX = 0;
+	per1 : 
+		//mov		bx, curx
+		//mov		dx, [esi]
+		//mov		ax, [esi + 2]
+		//cmp		ax, 0xFFFF
+		//jne		per2
+		//mov		ax, dx
+
+		TmpBX = curx;
+		TmpDX = *reinterpret_cast<unsigned short *>(TmpESI);
+		TmpAX = *reinterpret_cast<unsigned short *>(TmpESI + 2);
+		if (TmpAX != 0xFFFF) goto per2;
+		TmpAX = TmpDX;
+	per2 : 
+		//cmp		dx, ax
+		//jb		per3
+		//xchg	dx, ax	//now dx<=ax
+		if (TmpDX < TmpAX) goto per3;
+		unsigned short TmpUShort = TmpAX;
+		TmpAX = TmpDX;
+		TmpDX = TmpUShort;
+	per3 : 
+		//sub		ax, dx
+		//mov[esi + 2], ax  //now ax is free
+		//cmp		dx, bx		//dx=x1,bx=curx
+		//je		x1eqCurx
+		//jae		x1moreCurx
+		////need to move left,x1<curx
+		//mov		ax, bx
+		//sub		ax, dx
+		//mov		ebx, fogstart
+		TmpAX -= TmpDX;
+		*reinterpret_cast<unsigned short *>(TmpESI + 2) = TmpAX;
+		if (TmpDX == TmpBX) goto x1eqCurx;
+		if (TmpDX >= TmpBX) goto x1moreCurx;
+		//need to move left,x1<curx
+		TmpAX = TmpBX;
+		TmpAX -= TmpDX;
+		TmpEBX = fogstart;
+	per4 : 
+		//sub		edi, BMDXX
+		//sub		ebp, BMDYX
+		//sub		ebx, FogDx
+		//dec		ax
+		//jnz		per4
+		//mov		fogstart, ebx
+		//jmp		PrepareToNextLine
+		TmpEDI -= BMDXX;
+		TmpEBP -= BMDYX;
+		TmpEBX -= FogDx;
+		TmpAX--;
+		if (TmpAX != 0) goto per4;
+		fogstart = TmpEBX;
+		//jmp		PrepareToNextLine
+		goto PrepareToNextLine;
+	x1moreCurx :
+		//mov		ax, dx
+		//sub		ax, bx
+		//mov		ebx, fogstart
+		TmpAX = TmpDX;
+		TmpAX -= TmpBX;
+		TmpEBX = fogstart;
+	per5 : 
+		//add		edi, BMDXX
+		//add		ebp, BMDYX
+		//add		ebx, FogDx
+		//dec		ax
+		//jnz		per5
+		//mov		fogstart, ebx
+		TmpEDI += BMDXX;
+		TmpEBP += BMDYX;
+		TmpEBX += FogDx;
+		TmpAX--;
+		if (TmpAX != 0) goto per5;
+		fogstart = TmpEBX;
+	x1eqCurx :
 	PrepareToNextLine:
-		mov		ebx, fogstart
-			mov[esi + 12], ebx
-			add		ebx, FogDy
-			mov		fogstart, ebx
-			mov		bx, curx
-			mov		curx, dx
-			sub		dx, STRTX
-			mov[esi], dx
-			mov[esi + 4], edi
-			mov[esi + 8], ebp
-			add		edi, BMDXY   //edi=BMxy
-			add		ebp, BMDYY
-			//and     edi,00111111111111110011111111111111b
-			add		esi, 16
-			dec		ecx
-			jnz		per1
-			mov		EBP, TempEBP
-			popf
-			pop		esi
-			pop		edi
+		//mov		ebx, fogstart
+		//mov[esi + 12], ebx
+		//add		ebx, FogDy
+		//mov		fogstart, ebx
+		//mov		bx, curx
+		//mov		curx, dx
+		//sub		dx, STRTX
+		//mov[esi], dx
+		//mov[esi + 4], edi
+		//mov[esi + 8], ebp
+		//add		edi, BMDXY   //edi=BMxy
+		//add		ebp, BMDYY
+		//add		esi, 16
+		//dec		ecx
+		//jnz		per1
+
+		TmpEBX = fogstart;
+		*reinterpret_cast<unsigned int *>(TmpESI + 12) = TmpEBX;
+		TmpEBX += FogDy;
+		fogstart = TmpEBX;
+		TmpBX = curx;
+		curx = TmpDX;
+		TmpDX -= STRTX;
+		*reinterpret_cast<unsigned short *>(TmpESI) = TmpDX;
+		*reinterpret_cast<unsigned int *>(TmpESI + 4) = TmpEDI;
+		*reinterpret_cast<unsigned int *>(TmpESI + 8) = TmpEBP;
+		TmpEDI += BMDXY;	//edi=BMxy
+		TmpEBP += BMDYY;
+		TmpESI += 16;
+		TmpECX--;
+		if (TmpECX != 0) goto per1;
+
+		//mov		EBP, TempEBP
+		//popf
+		//pop		esi
+		//pop		edi
 	};
 	//Now we are ready to render trrriangle !!!!!!!!!!!!
 	return true;
 };
-//RENDERING THE TRIANGLE. 
-//It is really important. Before this oeration
-//VertBuf must be filled by values of x1,Lx,BMxy,Fog
-//OUTPUT:
-// word  NLines
-// For every line:
-// word  Dx
-// short Lx 
-// byte  data[Lx]
-// ...
-int PrecRenderTriangle64(int NLines, byte* Dest, byte* Bitmap) {
-	((int*)Dest)[0] = NLines;
-	int Startscan;
-	int ScanSize;
-	int VertPos;
-	((int*)Dest)[1] = OffsetX;
-	((int*)Dest)[2] = OffsetY;
-	int VBpos = int(VertBuf);
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		esi, Bitmap
-		mov		edi, Dest
-		add		edi, 12
-		mov		ebx, VBpos
-		cld
-		StartLine :
-		//Rendering the linear transformation
-		mov		ecx, [ebx]
-			mov[edi], ecx
-			add		edi, 4     //edi points to Dest
-			shr		ecx, 16    //Length of the scan line
-			mov		ScanSize, ecx
-			mov		Startscan, edi  //Storing for shadowing
-			mov		edx, [ebx + 4]    //BMX
-			mov		VertPos, ebx
-			mov		ebx, [ebx + 8]    //BMY
-			//and     ebx,0011 1111 1111 1110 0011 1111 1111 1110b
-			jcxz	StartShad
-			StartLinear :
-		mov		eax, edx     //1
-			ror		ebx, 8       //0
-			shr		eax, 16      //1
-			mov		ah, bh       //1
-			and		ax, 0011111100111111b
-			mov		al, [esi + eax]//?
-			rol		ebx, 8       //0
-			add		edx, BMDXX   //0
-			add		ebx, BMDYX   //1
-			dec		cx          //0
-			stosb               //0  could be optimized to stosd
-			jnz		StartLinear //1
-	//Shadow processing
-			StartShad :
-		xchg	edi, Startscan
-			mov		esi, VertPos
-			mov		ecx, ScanSize
-			mov		ebx, [esi + 12]   //fog
-			mov		edx, FogDx
-			//mov		edi,Startscan
-			jcxz	endfog
-			StartFog4 :      //Not optimal now! 32 bit reading coulde performed
-		mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jnz		StartFog4
-			endfog : mov		edi, Startscan
-			mov		ebx, esi
-			mov		esi, Bitmap
-			add		ebx, 16
-			dec		NLines
-			jnz		StartLine
-			sub		edi, Dest
-			mov		eax, edi
-			popf
-			pop		esi
-			pop		edi
-	};
-	return 0;
-};
-int PrecRenderTriangle128(int NLines, byte* Dest, byte* Bitmap) {
-	((word*)Dest)[0] = NLines;
-	int Startscan;
-	int ScanSize;
-	int VertPos;
-	((int*)Dest)[1] = OffsetX;
-	((int*)Dest)[2] = OffsetY;
-	int VBpos = int(VertBuf);
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		esi, Bitmap
-		mov		edi, Dest
-		add		edi, 12
-		mov		ebx, VBpos
-		cld
-		StartLine :
-		//Rendering the linear transformation
-		mov		ecx, [ebx]
-			mov[edi], ecx
-			add		edi, 4     //edi points to Dest
-			shr		ecx, 16    //Length of the scan line
-			mov		ScanSize, ecx
-			mov		Startscan, edi  //Storing for shadowing
-			mov		edx, [ebx + 4]    //BMX
-			mov		VertPos, ebx
-			mov		ebx, [ebx + 8]    //BMY
-			//and     ebx,0011 1111 1111 1110 0011 1111 1111 1110b
-			jcxz	StartShad
-			StartLinear :
-		mov		eax, edx     //1
-			ror		ebx, 8       //0
-			shr		eax, 16      //1
-			mov		ah, bh       //1
-			and		ax, 0111111101111111b
-			mov		al, [esi + eax]//?
-			rol		ebx, 8       //0
-			add		edx, BMDXX   //0
-			add		ebx, BMDYX   //1
-			dec		cx          //0
-			stosb               //0  could be optimized to stosd
-			jnz		StartLinear //1
-	//Shadow processing
-			StartShad :
-		xchg	edi, Startscan
-			mov		esi, VertPos
-			mov		ecx, ScanSize
-			mov		ebx, [esi + 12]   //fog
-			mov		edx, FogDx
-			//mov		edi,Startscan
-			jcxz	endfog
-			StartFog4 :      //Not optimal now! 32 bit reading coulde performed
-		mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jnz		StartFog4
-			endfog : mov		edi, Startscan
-			mov		ebx, esi
-			mov		esi, Bitmap
-			add		ebx, 16
-			dec		NLines
-			jnz		StartLine
-			sub		edi, Dest
-			mov		eax, edi
-			popf
-			pop		esi
-			pop		edi
-	};
-	return 0;
-};
+
 int PrecRenderTriangle64Dithering(int NLines, byte* Dest, byte* Bitmap) {
 	((int*)Dest)[0] = NLines;
 	int Startscan;
@@ -1037,87 +724,173 @@ int PrecRenderTriangle64Dithering(int NLines, byte* Dest, byte* Bitmap) {
 	((int*)Dest)[1] = OffsetX;
 	((int*)Dest)[2] = OffsetY;
 	int VBpos = int(VertBuf);
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		esi, Bitmap
-		mov		edi, Dest
-		add		edi, 12
-		mov		ebx, VBpos
-		cld
-		StartLine :
+	// BoonXRay 05.08.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		esi, Bitmap
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(Bitmap);
+		//mov		edi, Dest
+		unsigned int TmpEDI = reinterpret_cast<unsigned int>(Dest);
+		//add		edi, 12
+		TmpEDI += 12;
+		//mov		ebx, VBpos
+		unsigned int TmpEBX = VBpos;
+		//cld
+		unsigned int TmpEAX = 0, TmpECX = 0, TmpEDX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+		unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+	StartLine :
 		//Rendering the linear transformation
-		mov		ecx, [ebx]
-			mov[edi], ecx
-			add		edi, 4     //edi points to Dest
-			shr		ecx, 16    //Length of the scan line
-			mov		ScanSize, ecx
-			mov		Startscan, edi  //Storing for shadowing
-			mov		edx, [ebx + 4]    //BMX
-			mov		VertPos, ebx
-			mov		ebx, [ebx + 8]    //BMY
-			//and     ebx,0011 1111 1111 1110 0011 1111 1111 1110b
-			jcxz	StartShad
-			StartLinear :
-		mov		eax, edx     //1
-			ror		ebx, 8       //0
-			shr		eax, 16      //1
-			mov		ah, bh       //1
-			and		ax, 0011111100111111b
-			mov		al, [esi + eax]//?
-			rol		ebx, 8       //0
-			add		edx, BMDXX   //0
-			add		ebx, BMDYX   //1
-			dec		cx          //0
-			stosb               //0  could be optimized to stosd
-			jnz		StartLinear //1
+		//mov		ecx, [ebx]
+		TmpECX = *reinterpret_cast<unsigned int *>(TmpEBX);
+		//mov[edi], ecx
+		*reinterpret_cast<unsigned int *>(TmpEDI) = TmpECX;
+		//add		edi, 4     //edi points to Dest
+		TmpEDI += 4;	//edi points to Dest
+		//shr		ecx, 16    //Length of the scan line
+		TmpECX >>= 16;	//Length of the scan line
+		//mov		ScanSize, ecx
+		ScanSize = TmpECX;
+		//mov		Startscan, edi  //Storing for shadowing
+		Startscan = TmpEDI;		//Storing for shadowing
+		//mov		edx, [ebx + 4]    //BMX
+		TmpEDX = *reinterpret_cast<unsigned int *>(TmpEBX + 4);	//BMX
+		//mov		VertPos, ebx
+		VertPos = TmpEBX;
+		//mov		ebx, [ebx + 8]    //BMY
+		TmpEBX = *reinterpret_cast<unsigned int *>(TmpEBX + 8);	//BMY
+		//jcxz	StartShad
+		if (TmpCX == 0) goto StartShad;
+	StartLinear :
+		//mov		eax, edx     //1
+		TmpEAX = TmpEDX;	//1
+		//ror		ebx, 8       //0
+		//shr		eax, 16      //1
+		//mov		ah, bh       //1
+		//and		ax, 0011111100111111b
+		//mov		al, [esi + eax]//?
+		//rol		ebx, 8       //0
+		TmpEAX >>= 16;		//1
+		TmpAH = TmpEBX >> 16;	// Third byte
+		TmpAX &= 0x3F3F;		// 0011111100111111b
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpESI + TmpEAX);
 
-	//Shadow processing
-			StartShad :
-		xchg	edi, Startscan
-			mov		esi, VertPos
-			mov		ecx, ScanSize
-			mov		ebx, [esi + 12]   //fog
-			test	NLines, 1
-			jz		uuu2
-			add		ebx, 16384
-			uuu2:
-		mov		edx, FogDx
-			//mov		edi,Startscan
-			jcxz	endfog
-			StartFog4 :      //Not optimal now! 32 bit reading coulde performed
-		mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			add		ebx, 32768
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jz		endfog
-			mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			sub		ebx, 32768
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jnz		StartFog4
-			endfog : mov		edi, Startscan
-			mov		ebx, esi
-			mov		esi, Bitmap
-			add		ebx, 16
-			dec		NLines
-			jnz		StartLine
-			sub		edi, Dest
-			mov		eax, edi
-			popf
-			pop		esi
-			pop		edi
+		//add		edx, BMDXX   //0
+		TmpEDX += BMDXX;   //0
+		//add		ebx, BMDYX   //1
+		TmpEBX += BMDYX;   //1
+		//dec		cx          //0
+		TmpCX--;          //0
+		//stosb               //0  could be optimized to stosd
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;	//0  could be optimized to stosd
+		TmpEDI++;
+		//jnz		StartLinear //1
+		if (TmpCX != 0) goto StartLinear; //1
+
+							//Shadow processing
+	StartShad :
+		//xchg	edi, Startscan
+		unsigned int TmpUInt = Startscan;
+		Startscan = TmpEDI;
+		TmpEDI = TmpUInt;
+		//mov		esi, VertPos
+		TmpESI = VertPos;
+		//mov		ecx, ScanSize
+		TmpECX = ScanSize;
+		//mov		ebx, [esi + 12]   //fog
+		TmpEBX = *reinterpret_cast<unsigned int *>(TmpESI + 12);	//fog
+		//test	NLines, 1
+		//jz		uuu2
+		if ((NLines & 1) == 0) goto uuu2;
+		//add		ebx, 16384
+		TmpEBX += 16384;
+	uuu2:
+		//mov		edx, FogDx
+		TmpEDX = FogDx;
+		//jcxz	endfog
+		if (TmpCX == 0) goto endfog;
+	StartFog4 :      //Not optimal now! 32 bit reading coulde performed
+		//mov		eax, ebx
+		TmpEAX = TmpEBX;
+
+
+		//sar		eax, 8
+		if (TmpEAX & 0x80000000)
+		{
+			TmpEAX >>= 8;
+			TmpEAX |= 0xFF000000;
+		}
+		else TmpEAX >>= 8;
+
+		//add		ebx, edx
+		TmpEBX += TmpEDX;
+		//add		ebx, 32768
+		TmpEBX += 32768;
+		//mov		al, [edi]
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+		//mov		al, [darkfog + 16384 + eax]
+		TmpAL = *reinterpret_cast<unsigned char *>(darkfog + 16384 + TmpEAX);
+		//mov[edi], al
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc		edi
+		TmpEDI++;
+		//dec		cx
+		TmpCX--;
+		//jz		endfog
+		if (TmpCX == 0) goto endfog;
+		//mov		eax, ebx
+		TmpEAX = TmpEBX;
+
+
+		//sar		eax, 8
+		if (TmpEAX & 0x80000000)
+		{
+			TmpEAX >>= 8;
+			TmpEAX |= 0xFF000000;
+		}
+		else TmpEAX >>= 8;
+
+		//add		ebx, edx
+		TmpEBX += TmpEDX;
+		//sub		ebx, 32768
+		TmpEBX -= 32768;
+		//mov		al, [edi]
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+		//mov		al, [darkfog + 16384 + eax]
+		TmpAL = *reinterpret_cast<unsigned char *>(darkfog + 16384 + TmpEAX);
+		//mov[edi], al
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc		edi
+		TmpEDI++;
+		//dec		cx
+		TmpCX--;
+		//jnz		StartFog4
+		if (TmpCX != 0) goto StartFog4;
+	endfog : 
+		//mov		edi, Startscan
+		TmpEDI = Startscan;
+		//mov		ebx, esi
+		TmpEBX = TmpESI;
+		//mov		esi, Bitmap
+		TmpESI = reinterpret_cast<unsigned int>(Bitmap);
+		//add		ebx, 16
+		TmpEBX += 16;
+		//dec		NLines
+		NLines--;
+		//jnz		StartLine
+		if (NLines != 0) goto StartLine;
+		//sub		edi, Dest
+		TmpEDI -= reinterpret_cast<unsigned int>(Dest);
+		//mov		eax, edi
+		TmpEAX = TmpEDI;
+		//popf
+		//pop		esi
+		//pop		edi
 	};
 	return 0;
 };
@@ -1144,75 +917,35 @@ int PrecPreRenderTri64(int x1, int y1,
 	BMDXY = bmdxy;
 	BMDYY = bmdyy;
 	FOG1 = fog;
-	int VBpos = int(VertBuf);
+	//int VBpos = int(VertBuf);
 	//Инициализация VertBuf
-	__asm {
-		push	edi
-		pushf
-		cld
-		mov		edi, VBpos
-		mov		ecx, z2
-		sub		ecx, z1
-		inc		ecx
-		uux1 : mov		dword ptr[edi], 0xFFFFFFFF;
-		add		edi, 16
-			dec		ecx
-			jnz		uux1
-			popf
-			pop		edi
-	};
+	// BoonXRay 06.08.2017
+	//__asm {
+	//	push	edi
+	//	pushf
+	//	cld
+	//	mov		edi, VBpos
+	//	mov		ecx, z2
+	//	sub		ecx, z1
+	//	inc		ecx
+	//	uux1 : mov		dword ptr[edi], 0xFFFFFFFF;
+	//	add		edi, 16
+	//		dec		ecx
+	//		jnz		uux1
+	//		popf
+	//		pop		edi
+	//};	
+	unsigned int * Ptr = reinterpret_cast<unsigned int *>(VertBuf);
+	for (unsigned int i = z2 - z1 + 1; i != 0; Ptr += 4, i--)
+		* Ptr = 0xFFFFFFFF;
+
 	addLine(x2, y2 - z1);
 	addLine(x3, y3 - z1);
 	addLine(x1, y1 - z1);
 	PrecPrepareToRender(z2 - z1 + 1, x1, y1 - z1);
 	return PrecRenderTriangle64Dithering(z2 - z1 + 1, Dest, bitm);//Dithering(z2-z1+1,Dest,bitm);
 };
-int PrecPreRenderTri128(int x1, int y1,
-	int x2, int y2,
-	int x3, int y3,
-	int bmx, int bmy,
-	int bmdxx, int bmdyx, int bmdxy, int bmdyy,
-	int fog, int fogdx, int fogdy,
-	byte* bitm,
-	byte* Dest) {
-	int z1 = GetMin(y1, y2, y3);
-	int z2 = GetMax(y1, y2, y3);
-	curScrOfs = x1 + y1*Buf3DLx;
-	CurFog = fog;
-	curXT = x1;
-	curYT = y1 - z1;
-	FogDx = fogdx;
-	FogDy = fogdy;
-	BMX = bmx;
-	BMY = bmy;
-	BMDXX = bmdxx;
-	BMDYX = bmdyx;
-	BMDXY = bmdxy;
-	BMDYY = bmdyy;
-	FOG1 = fog;
-	int VBpos = int(VertBuf);
-	//Инициализация VertBuf
-	__asm {
-		push	edi
-		pushf
-		cld
-		mov		edi, VBpos
-		mov		ecx, z2
-		sub		ecx, z1
-		inc		ecx
-		uux1 : mov		dword ptr[edi], 0xFFFFFFFF;
-		add		edi, 16
-			dec		ecx
-			jnz		uux1
-			popf
-			pop		edi
-	};
-	addLine(x2, y2 - z1);
-	addLine(x3, y3 - z1);
-	addLine(x1, y1 - z1);
-	PrecPrepareToRender(z2 - z1 + 1, x1, y1 - z1);
-	return PrecRenderTriangle128(z2 - z1 + 1, Dest, bitm);
-};
+
 int RenderBestTriangle64(int xs1, int ys1,
 	int xs2, int ys2,
 	int xs3, int ys3,
@@ -1261,54 +994,7 @@ int RenderBestTriangle64(int xs1, int ys1,
 		(f1 << 16) + 32768, FDx, FDy, Bitm, Dest);
 
 };
-int RenderBestTriangle128(int xs1, int ys1,
-	int xs2, int ys2,
-	int xs3, int ys3,
-	int xb1, int yb1,
-	int xb2, int yb2,
-	int xb3, int yb3,
-	int f1, int f2, int f3,
-	byte * Dest, byte* Bitm) {
-	int dxb2 = xb2 - xb1;
-	int dxb3 = xb3 - xb1;
-	int dyb2 = yb2 - yb1;
-	int dyb3 = yb3 - yb1;
-	int dxs2 = xs2 - xs1;
-	int dxs3 = xs3 - xs1;
-	int dys2 = ys2 - ys1;
-	int dys3 = ys3 - ys1;
 
-	int D = dxs2*dys3 - dys2*dxs3;
-	if (!D) {
-		Dest = NULL;
-		return -1;
-	};
-	int Axx = dys3*dxb2 - dxb3*dys2;
-	int Axy = dxs2*dxb3 - dxb2*dxs3;
-	int Ayx = dys3*dyb2 - dyb3*dys2;
-	int Ayy = dxs2*dyb3 - dyb2*dxs3;
-
-	Axx = div(Axx << 16, D).quot;
-	Ayy = div(Ayy << 16, D).quot;
-	Axy = div(Axy << 16, D).quot;
-	Ayx = div(Ayx << 16, D).quot;
-
-	int bmxy = ((xb1 & 63) << 8) + ((yb1 & 63) << 24);
-	int bmdx = word(Axx) + (word(Ayx) << 16);
-	int bmdy = word(Axy) + (word(Ayy) << 16);
-	//Fogging
-	int DScr = dys2*dxs3 - dxs2*dys3;
-	int FDx = 0;
-	int FDy = 0;
-	if (DScr) {
-		FDx = div(((f3 - f1)*dys2 - dys3*(f2 - f1)) << 16, DScr).quot;
-		FDy = div(((f2 - f1)*dxs3 - dxs2*(f3 - f1)) << 16, DScr).quot;
-	};
-	return PrecPreRenderTri128(xs1, ys1, xs2, ys2, xs3, ys3,
-		((xb1 & 255) << 16) + 32768, ((yb1 & 255) << 16) + 32768, Axx, Ayx, Axy, Ayy,
-		f1 << 16, FDx, FDy, Bitm, Dest);
-
-};
 int DirectRenderTriangle64Dithering(int NLines, int StartLine, int EndLine, int DestSizeX, byte* Dest, byte* Bitmap) {
 	if (StartLine >= NLines || EndLine < 0)return 0;
 	int RealStartLine = StartLine;
@@ -1323,93 +1009,172 @@ int DirectRenderTriangle64Dithering(int NLines, int StartLine, int EndLine, int 
 	//((int*)Dest)[2]=OffsetY;
 	int VBpos = int(VertBuf) + (RealStartLine << 4);
 	int StartEDI = int(Dest) + RealStartLine*DestSizeX;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		mov		esi, Bitmap
-		add		edi, 12
-		mov		ebx, VBpos
-		cld
-		StartLineCode :
+	// BoonXRay 06.08.2017
+	//__asm 
+	{
+		//push	esi
+		//push	edi
+		//pushf
+		//mov		esi, Bitmap
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(Bitmap);
+		//add		edi, 12
+		unsigned int TmpEDI = 0;
+		//mov		ebx, VBpos
+		unsigned int TmpEBX = VBpos;
+		//cld
+		unsigned int TmpEAX = 0, TmpECX = 0, TmpEDX = 0;
+		unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+		unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+		unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+		unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+	StartLineCode :
 		//Rendering the linear transformation
-		mov		edi, StartEDI
-			mov		ecx, [ebx]
-			//mov		[edi],ecx
-			xor eax, eax
-			mov		ax, cx
-			test	cx, 0x8000
-			jz		ululuk
-			or eax, 0xFFFF0000
-			ululuk:
-		add		edi, eax   //edi points to Dest
-			shr		ecx, 16    //Length of the scan line
-			mov		ScanSize, ecx
-			mov		Startscan, edi  //Storing for shadowing
-			mov		edx, [ebx + 4]    //BMX
-			mov		VertPos, ebx
-			mov		ebx, [ebx + 8]    //BMY
-			//and     ebx,0011 1111 1111 1110 0011 1111 1111 1110b
-			jcxz	StartShad
-			StartLinear :
-		mov		eax, edx     //1
-			ror		ebx, 8       //0
-			shr		eax, 16      //1
-			mov		ah, bh       //1
-			and		ax, 0011111100111111b
-			mov		al, [esi + eax]//?
-			rol		ebx, 8       //0
-			add		edx, BMDXX   //0
-			add		ebx, BMDYX   //1
-			dec		cx          //0
-			stosb               //0  could be optimized to stosd
-			jnz		StartLinear //1
+		//mov		edi, StartEDI
+		TmpEDI = StartEDI;
+		//mov		ecx, [ebx]
+		TmpECX = *reinterpret_cast<unsigned int *>(TmpEBX);
+		//xor eax, eax
+		TmpEAX = 0;
+		//mov		ax, cx
+		TmpAX = TmpCX;
+		//test	cx, 0x8000
+		//jz		ululuk
+		if ((TmpCX & 0x8000) == 0) goto ululuk;
+		//or eax, 0xFFFF0000
+		TmpEAX |= 0xFFFF0000;
+	ululuk:
+		//add		edi, eax   //edi points to Dest
+		TmpEDI += TmpEAX;	//edi points to Dest
+		//shr		ecx, 16    //Length of the scan line
+		TmpECX >>= 16;		//Length of the scan line
+		//mov		ScanSize, ecx
+		ScanSize = TmpECX;
+		//mov		Startscan, edi  //Storing for shadowing
+		Startscan = TmpEDI;	//Storing for shadowing
+		//mov		edx, [ebx + 4]    //BMX
+		TmpEDX = *reinterpret_cast<unsigned int *>(TmpEBX + 4);	//BMX
+		//mov		VertPos, ebx
+		VertPos = TmpEBX;
+		//mov		ebx, [ebx + 8]    //BMY
+		TmpEBX = *reinterpret_cast<unsigned int *>(TmpEBX + 8);	//BMY
+		//jcxz	StartShad
+		if (TmpCX == 0) goto StartShad;
+	StartLinear :
+		//mov		eax, edx     //1
+		TmpEAX = TmpEDX;	//1
+		//ror		ebx, 8       //0
+		//shr		eax, 16      //1
+		TmpEAX >>= 16;
+		//mov		ah, bh       //1
+		TmpAH = TmpEBX >> 16;	// Third byte
+		//and		ax, 0011111100111111b
+		TmpAX &= 0x3F3F;	// 0011111100111111b
+		//mov		al, [esi + eax]//?
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpESI + TmpEAX);
+		//rol		ebx, 8       //0
+		//add		edx, BMDXX   //0
+		TmpEDX += BMDXX;	//0
+		//add		ebx, BMDYX   //1
+		TmpEBX += BMDYX;	//1
+		//dec		cx          //0
+		TmpCX--;
+		//stosb               //0  could be optimized to stosd
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		TmpEDI++;
+		//jnz		StartLinear //1
+		if (TmpCX != 0) goto StartLinear;	//1
 
-	//Shadow processing
-			StartShad :
-		mov		edi, Startscan
-			mov		esi, VertPos
-			mov		ecx, ScanSize
-			mov		ebx, [esi + 12]   //fog
-			test	NLines, 1
-			jz		uuu2
-			add		ebx, 16384
-			uuu2:
-		mov		edx, FogDx
-			//mov		edi,Startscan
-			jcxz	endfog
-			StartFog4 :      //Not optimal now! 32 bit reading coulde performed
-		mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			add		ebx, 32768
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jz		endfog
-			mov		eax, ebx
-			sar		eax, 8
-			add		ebx, edx
-			sub		ebx, 32768
-			mov		al, [edi]
-			mov		al, [darkfog + 16384 + eax]
-			mov[edi], al
-			inc		edi
-			dec		cx
-			jnz		StartFog4
-			endfog : mov		edi, StartEDI
-			add		edi, DestSizeX
-			mov		StartEDI, edi
-			mov		ebx, esi
-			mov		esi, Bitmap
-			add		ebx, 16
-			dec		RealEndLine
-			jnz		StartLineCode
-			popf
-			pop		esi
-			pop		edi
+								//Shadow processing
+	StartShad :
+		//mov		edi, Startscan
+		TmpEDI = Startscan;
+		//mov		esi, VertPos
+		TmpESI = VertPos;
+		//mov		ecx, ScanSize
+		TmpECX = ScanSize;
+		//mov		ebx, [esi + 12]   //fog
+		TmpEBX = *reinterpret_cast<unsigned int *>(TmpESI + 12);	//fog
+		//test	NLines, 1
+		//jz		uuu2
+		if ((NLines & 1) == 0) goto uuu2;
+		//add		ebx, 16384
+		TmpEBX += 16384;
+	uuu2:
+		//mov		edx, FogDx
+		TmpEDX = FogDx;
+		//jcxz	endfog
+		if (TmpCX == 0) goto endfog;
+	StartFog4 :      //Not optimal now! 32 bit reading coulde performed
+		//mov		eax, ebx
+		TmpEAX = TmpEBX;
+		//sar		eax, 8
+		if (TmpEAX & 0x80000000)
+		{
+			TmpEAX >>= 8;
+			TmpEAX |= 0xFF000000;
+		}
+		else TmpEAX >>= 8;
+		//add		ebx, edx
+		TmpEBX += TmpEDX;
+		//add		ebx, 32768
+		TmpEBX += 32768;
+		//mov		al, [edi]
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+		//mov		al, [darkfog + 16384 + eax]
+		TmpAL = *reinterpret_cast<unsigned char *>(darkfog + 16384 + TmpEAX);
+		//mov[edi], al
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc		edi
+		TmpEDI++;
+		//dec		cx
+		TmpCX--;
+		//jz		endfog
+		if (TmpCX == 0) goto endfog;
+		//mov		eax, ebx
+		TmpEAX = TmpEBX;
+		//sar		eax, 8
+		if (TmpEAX & 0x80000000)
+		{
+			TmpEAX >>= 8;
+			TmpEAX |= 0xFF000000;
+		}
+		else TmpEAX >>= 8;
+		//add		ebx, edx
+		TmpEBX += TmpEDX;
+		//sub		ebx, 32768
+		TmpEBX -= 32768;
+		//mov		al, [edi]
+		//mov		al, [darkfog + 16384 + eax]
+		//mov[edi], al
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+		TmpAL = *reinterpret_cast<unsigned char *>(darkfog + 16384 + TmpEAX);
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		//inc		edi
+		TmpEDI++;
+		//dec		cx
+		TmpCX--;
+		//jnz		StartFog4
+		if (TmpCX != 0) goto StartFog4;
+	endfog : 
+		//mov		edi, StartEDI
+		TmpEDI = StartEDI;
+		//add		edi, DestSizeX
+		TmpEDI += DestSizeX;
+		//mov		StartEDI, edi
+		StartEDI = TmpEDI;
+		//mov		ebx, esi
+		TmpEBX = TmpESI;
+		//mov		esi, Bitmap
+		TmpESI = reinterpret_cast<unsigned int>(Bitmap);
+		//add		ebx, 16
+		TmpEBX += 16;
+		//dec		RealEndLine
+		RealEndLine--;
+		//jnz		StartLineCode
+		if (RealEndLine != 0) goto StartLineCode;
+		//popf
+		//pop		esi
+		//pop		edi
 	};
 	return 0;
 };
@@ -1439,23 +1204,28 @@ int DirectPreRenderTri64(int x1, int y1,
 	BMDXY = bmdxy;
 	BMDYY = bmdyy;
 	FOG1 = fog;
-	int VBpos = int(VertBuf);
+	//int VBpos = int(VertBuf);
 	//Инициализация VertBuf
-	__asm {
-		push	edi
-		pushf
-		cld
-		mov		edi, VBpos
-		mov		ecx, z2
-		sub		ecx, z1
-		inc		ecx
-		uux1 : mov		dword ptr[edi], 0xFFFFFFFF;
-		add		edi, 16
-			dec		ecx
-			jnz		uux1
-			popf
-			pop		edi
-	};
+	// BoonXRay 06.08.2017
+	//__asm {
+	//	push	edi
+	//	pushf
+	//	cld
+	//	mov		edi, VBpos
+	//	mov		ecx, z2
+	//	sub		ecx, z1
+	//	inc		ecx
+	//	uux1 : mov		dword ptr[edi], 0xFFFFFFFF;
+	//	add		edi, 16
+	//		dec		ecx
+	//		jnz		uux1
+	//		popf
+	//		pop		edi
+	//};
+	unsigned int * Ptr = reinterpret_cast<unsigned int *>(VertBuf);
+	for (unsigned int i = z2 - z1 + 1; i != 0; Ptr += 4, i--)
+		* Ptr = 0xFFFFFFFF;
+
 	addLine(x2, y2 - z1);
 	addLine(x3, y3 - z1);
 	addLine(x1, y1 - z1);
@@ -1613,28 +1383,7 @@ void SetHi(int i, int h) {
 	if (i<0 || i>MaxTH*(MaxTH + 1))return;
 	THMap[i] = h;
 };
-void CreateTriBlob(int x, int y, int h, int r) {
-	int sx = x << 5;
-	int sy = y << 5;
-	int dvd = (TriUnit * 2) >> 5;
-	int utx = div(x << 5, TriUnit * 2).quot;
-	int uty = div(y << 5, TriUnit * 2).quot;
-	double r2 = r*r * 512;
-	for (int tx = -r; tx < r; tx++)
-		for (int ty = -r; ty < r; ty++) {
-			int vx = utx + tx;
-			int vy = uty + ty;
-			if (vx >= 0 && vx < VertInLine&&vy>0) {
-				int vert = vx + vy*VertInLine;
-				vx = GetTriX(vert);
-				vy = GetTriY(vert);
-				int dh = 0;
-				double sss = -double((vx - sx)*(vx - sx) + (vy - sy)*(vy - sy)) / r2;
-				if (abs(int(sss)) < 10) dh = int(double(h)*exp(sss));
-				SetHi(vert, GetHi(vert) + dh);
-			};
-		};
-};
+
 void CreateEffect(int x, int y, int r, HiCallback* HCB) {
 	int dvd = (TriUnit * 2) >> 5;
 	int utx = div(x, TriUnit * 2).quot;
@@ -1654,52 +1403,7 @@ void CreateEffect(int x, int y, int r, HiCallback* HCB) {
 		};
 };
 void MarkPointToDraw(int i);
-void CreateAveragePlane(int x, int y, int r) {
-	int h = 0;
-	int np = 0;
-	int dvd = (TriUnit * 2) >> 5;
-	int utx = div(x, TriUnit * 2).quot;
-	int uty = div(y, TriUnit * 2).quot;
-	int r1 = (r >> 5) + 3;
-	//double r2=r*r*512;
-	for (int tx = -r1; tx < r1; tx++)
-		for (int ty = -r1; ty < r1; ty++) {
-			int vx = utx + tx;
-			int vy = uty + ty;
-			if (vx >= 0 && vx < VertInLine&&vy>0) {
-				int vert = vx + vy*VertInLine;
-				vx = GetTriX(vert);
-				vy = GetTriY(vert);
-				int  rr = int(sqrt((vx - x)*(vx - x) + (vy - y)*(vy - y)));
-				if (rr < r) {
-					h += GetHi(vert);
-					np++;
-				};
-			};
-		};
-	h = div(h, np).quot;
-	for (int tx = -r1; tx < r1; tx++)
-		for (int ty = -r1; ty < r1; ty++) {
-			int vx = utx + tx;
-			int vy = uty + ty;
-			if (vx >= 0 && vx < VertInLine&&vy>0) {
-				int vert = vx + vy*VertInLine;
-				vx = GetTriX(vert);
-				vy = GetTriY(vert);
-				int  rr = int(sqrt((vx - x)*(vx - x) + (vy - y)*(vy - y)));
-				if (rr < r) {
-					SetHi(vert, h);
-					MarkPointToDraw(vert);
-				}
-				else if (rr < r + 128) {
-					int hh1 = GetHi(vert);
-					hh1 = h + (((hh1 - h)*(rr - r)) >> 7);
-					SetHi(vert, hh1);
-					MarkPointToDraw(vert);
-				};
-			};
-		};
-};
+
 void CreateRandomHMap() {
 	//CreateTriBlob(40,40,100,10);
 	/*
@@ -1759,13 +1463,7 @@ int GetLighting(int i) {
 	if (lig > 31)lig = 31;
 	return 32 - lig;
 };
-//---------------------------------------------
 
-void ShowVisualLess(int yend);
-void ProcessWaveFrames();
-void ShowRelief() {
-
-};
 //-----------------------------TESTING--------------------------
 word TexFlags[256];
 byte TexMedia[256];
@@ -1773,7 +1471,6 @@ word RoadTex[256];
 byte ExtTex[256][4];
 char* TexNames[256];
 void NLine(GFILE*);
-void ClearIntersectionBuffer();
 byte TileMap[256];
 extern int TEXARR[8];
 

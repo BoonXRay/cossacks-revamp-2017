@@ -78,8 +78,6 @@ extern int LOADED;
 extern bool SHOWSLIDE;
 extern bool CINFMOD;
 void ShowMines( NewMonster* NM );
-void ShowRLCItemDarkN( int x, int y, lpRLCTable lprt, int n, int Ints );
-void ShowRLCItemRedN( int x, int y, lpRLCTable lprt, int n, int Ints );
 int CheckCreationAbility( byte NI, NewMonster* NM, int* x2i, int* y2i, word* BLD, int NBLD );
 void CmdGoToTransport( byte NI, word ID );
 bool GetRealCoords( int xs, int ys, int* xr, int* yr );
@@ -403,131 +401,6 @@ int ConvY( int y )
 	return div24( y * 32 );
 }
 
-void RedSquare( int x, int y )
-{
-	if (x < mapx || x >= mapx + smaplx || y < mapy || y >= mapy + smaply)
-	{
-		return;
-	}
-
-	int sco = int( ScreenPtr ) + smapx + ( ( x - mapx ) << 5 ) +
-		( ( ( y - mapy ) << 5 ) + smapy )*SCRSizeX;
-
-	int ddx = SCRSizeX + SCRSizeX - 32;
-	__asm
-	{
-		push	edi
-		mov		edi, sco
-		mov		eax, 16
-		uyu:	mov		ecx, 16
-				uuu : mov		byte ptr[edi], clrRed
-					  add		edi, 2
-					  loop	uuu
-					  add		edi, ddx
-					  dec		al
-					  jnz		uyu
-
-					  pop		edi
-	}
-}
-
-void RedMiniSquare( int x, int y )
-{
-	if (x < mapx || x >= mapx + smaplx || y < mapy || y >= mapy + smaply)
-	{
-		return;
-	}
-
-	int sco = int( ScreenPtr ) + smapx + ( ( x - mapx ) << 4 ) +
-		( ( ( y - mapy ) << 4 ) + smapy )*SCRSizeX;
-
-	int ddx = SCRSizeX + SCRSizeX - 16;
-	__asm
-	{
-		push	edi
-		mov		edi, sco
-		mov		eax, 8
-		uyu:	mov		ecx, 8
-				uuu : mov		byte ptr[edi], clrRed
-					  add		edi, 2
-					  loop	uuu
-					  add		edi, ddx
-					  dec		al
-					  jnz		uyu
-
-					  pop		edi
-	}
-}
-
-void RedBar( int x, int y, int lx, int ly )
-{
-	for (int i = 0; i < lx; i++)
-		for (int j = 0; j < ly; j++)
-			RedSquare( x + i, y + j );
-}
-
-void RedMiniBar( int x, int y, int lx, int ly )
-{
-	for (int i = 0; i < lx; i++)
-		for (int j = 0; j < ly; j++)
-			RedMiniSquare( x + i, y + j );
-}
-
-void WhiteSquare( int x, int y )
-{
-	if (x < mapx || x >= mapx + smaplx || y < mapy || y >= mapy + smaply)return;
-	int sco = int( ScreenPtr ) + smapx + ( ( x - mapx ) << 5 ) +
-		( ( ( y - mapy ) << 5 ) + smapy )*SCRSizeX;
-	int ddx = SCRSizeX + SCRSizeX - 32;
-	__asm {
-		push	edi
-		mov		edi, sco
-		mov		eax, 16
-		uyu:	mov		ecx, 16
-				uuu : mov		byte ptr[edi], 255
-					  add		edi, 2
-					  loop	uuu
-					  add		edi, ddx
-					  dec		al
-					  jnz		uyu
-
-					  pop		edi
-	}
-}
-
-void WhiteMiniSquare( int x, int y )
-{
-	if (x < mapx || x >= mapx + smaplx || y < mapy || y >= mapy + smaply)return;
-	int sco = int( ScreenPtr ) + smapx + ( ( x - mapx ) << 4 ) +
-		( ( ( y - mapy ) << 4 ) + smapy )*SCRSizeX;
-	int ddx = SCRSizeX + SCRSizeX - 16;
-	__asm {
-		push	edi
-		mov		edi, sco
-		mov		eax, 8
-		uyu:	mov		ecx, 8
-				uuu : mov		byte ptr[edi], 255
-					  add		edi, 2
-					  loop	uuu
-					  add		edi, ddx
-					  dec		al
-					  jnz		uyu
-
-					  pop		edi
-	};
-};
-void WhiteBar( int x, int y, int lx, int ly )
-{
-	for (int i = 0; i < lx; i++)
-		for (int j = 0; j < ly; j++)
-			WhiteSquare( x + i, y + j );
-};
-void WhiteMiniBar( int x, int y, int lx, int ly )
-{
-	for (int i = 0; i < lx; i++)
-		for (int j = 0; j < ly; j++)
-			WhiteMiniSquare( x + i, y + j );
-};
 extern int CurPalette;
 void OutErr( LPCSTR s )
 {
@@ -1449,8 +1322,6 @@ void ShowWinner()
 }
 
 //final procedures for graphics output
-void ProcessWaveFrames();
-void ShowVisualLess( int yend );
 extern word rpos;
 int time0;
 word PreRpos;
@@ -2386,9 +2257,7 @@ int MiniX, MiniY;
 
 DWORD BMASK[MBR4] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 void DrawMiniFog();
-void ViewRoads( int x, int y );
 extern int NROADS;
-void ShowSafetyInfo( int x, int y );
 void DrawMinAZones( int x, int y );
 void DrawMinAZonesVis( int x, int y );
 extern int LastAttackX;
@@ -2717,7 +2586,6 @@ bool GetRealCoords( int xs, int ys, int* xr, int* yr )
 void RandomHi( int x, int y1, int r, int ms, int fnd );
 void AddHiPlanar( int x, int y1, int r, int h );
 void CreatePlane( int x, int y1, int r );
-void SetSpot( int x, int y );
 word GetNewFriend( int xr, int yr, byte NI );
 bool LockMouse = false;
 bool WasSelectionBar = false;

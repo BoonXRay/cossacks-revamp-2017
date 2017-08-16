@@ -115,15 +115,11 @@ VirtualScreen::~VirtualScreen()
 	free( LoTriMap );
 }
 
-void VirtualScreen::SetVSParameters( int sLx, int sLy )
-{
-	Lx = sLx;
-	Ly = sLy;
-}
-
 void VirtualScreen::CopyVSPart( int vx, int vy, int sx, int sy, int SizeX, int SizeY )
 {
-	if (!( SizeY && SizeY ))
+	// BoonXRay 07.08.2017
+	//if (!( SizeY && SizeY ))
+	if (!(SizeX && SizeY))
 	{
 		return;
 	}
@@ -137,69 +133,39 @@ void VirtualScreen::CopyVSPart( int vx, int vy, int sx, int sy, int SizeX, int S
 	int szx1 = SizeX & 3;
 	int addvs = RealVLx - SizeX;
 	int addsc = SCRSizeX - SizeX;
-	__asm 
+	// BoonXRay 14.08.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		pushf
-		cld
-		mov		edi, scofs
-		mov		esi, vsofs
-		mov		edx, SizeY
-		lpp1 : mov		ecx, szx4
-			   rep		movsd
-			   mov		ecx, szx1
-			   rep		movsb
-			   add		esi, addvs
-			   add		edi, addsc
-			   dec		edx
-			   jnz		lpp1
-			   popf
-			   pop		edi
-			   pop		esi
+		//push	esi
+		//push	edi
+		//pushf
+		//cld
+		//mov		edi, scofs
+		//mov		esi, vsofs
+		//mov		edx, SizeY
+		unsigned char * TmpEDI = reinterpret_cast<unsigned char *>(ScreenPtr) + sx + sy*SCRSizeX;
+		unsigned char * TmpESI = VirtualScreenPointer + vx + vy*RealVLx;
+	//lpp1 : 
+		//mov		ecx, szx4
+		//rep		movsd
+		//mov		ecx, szx1
+		//rep		movsb
+		//add		esi, addvs
+		//add		edi, addsc
+		//dec		edx
+		//jnz		lpp1
+		//popf
+		//pop		edi
+		//pop		esi
+		for (int i = 0; i < SizeY; ++i)
+		{
+			memcpy(TmpEDI, TmpESI, SizeX);
+			TmpESI += RealVLx;
+			TmpEDI += SCRSizeX;
+		}
 	}
 }
 
-void VirtualScreen::CopyVSPartMMX( int vx, int vy, int sx, int sy, int SizeX, int SizeY )
-{
-	if (!( SizeY&&SizeY ))return;
-	//debugging control
-	//assert(sx>=0&&sy>=0&&sx+SizeX<=SCRSizeX&&sy+SizeY<=SCRSizeY);
-	//-----------------
-	int vsofs = int( VirtualScreenPointer ) + vx + vy*RealVLx;
-	int scofs = int( ScreenPtr ) + sx + sy*SCRSizeX;
-	int szx4 = SizeX >> 3;
-	int szx1 = SizeX & 7;
-	int addvs = RealVLx - SizeX;
-	int addsc = SCRSizeX - SizeX;
-	__asm {
-		push	esi
-		push	edi
-		pushf
-		cld
-		mov		edi, scofs
-		mov		esi, vsofs
-		mov		edx, SizeY
-		lpp1 : mov		ecx, szx4
-			   jcxz	lpp3
-			   lpp2 : movq	mm0, [esi]
-					  add		esi, 8;
-		movq[edi], mm0
-			add		edi, 8
-			dec		cx
-			jnz		lpp2
-			lpp3 : mov		ecx, szx1
-			rep		movsb
-			add		esi, addvs
-			add		edi, addsc
-			dec		edx
-			jnz		lpp1
-			popf
-			pop		edi
-			pop		esi
-			emms
-	};
-};
 void VirtualScreen::CopyVSToScreen()
 {
 	int TotLx = smaplx << 5;
@@ -917,31 +883,6 @@ void VirtualScreen::Zero()
 {
 	memset( VirtualScreenPointer, 0xCD, RealVLx*RealVLy );
 	CreateTrianglesMapping();
-}
-
-int GetHiDiff( int xx, int yy )
-{
-	int x = ( xx << 4 ) + 8;
-	int y = ( yy << 4 ) + 8;
-	int hi1 = abs( GetHeight( x - 16, y ) - GetHeight( x + 16, y ) );
-	int hi2 = abs( GetHeight( x, y - 16 ) - GetHeight( x, y + 16 ) );
-	if (abs( hi1 ) > abs( hi2 ))return hi1; else return hi2;
-}
-
-int GetBigHiDiff( int xx, int yy )
-{
-	int x = ( xx << 4 ) + 8;
-	int y = ( yy << 4 ) + 8;
-	int hi1 = abs( GetHeight( x - 32, y ) - GetHeight( x + 32, y ) );
-	int hi2 = abs( GetHeight( x, y - 32 ) - GetHeight( x, y + 32 ) );
-	if (abs( hi1 ) > abs( hi2 ))return hi1; else return hi2;
-}
-
-void SetLockPoint( int xx, int yy )
-{
-	int ddif = GetHiDiff( xx, yy );
-	if (ddif > 14 && GetBigHiDiff( xx, yy ) > 14)BSetPt( xx, yy );
-	else BClrPt( xx, yy );
 }
 
 void VirtualScreen::RefreshTriangle( int i )

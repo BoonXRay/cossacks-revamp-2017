@@ -5,17 +5,28 @@ typedef unsigned char byte;
 #include "StringHash.h"
 
 __forceinline byte CalcHash(char* s){
-	__asm{
-		mov esi,s
-		cld
-		xor bl,bl
-		xor eax,eax
-strlp1: lodsb
-		add bl,al
-		or al,al
-		jnz strlp1
-		mov al,bl	
+	// BoonXRay 14.08.2017
+	//__asm 
+	{
+		//mov esi, s
+		//cld
+		//xor bl, bl
+		//xor eax, eax
+		unsigned char * TmpESI = reinterpret_cast<unsigned char *>( s );
+		unsigned char TmpBL = 0, TmpAL = 0;
+	strlp1 : 
+		//lodsb
+		//add bl, al
+		//or al, al
+		//jnz strlp1
+		//mov al, bl
+		TmpAL = *TmpESI;
+		TmpESI++;
+		TmpBL += TmpAL;
+		if (TmpAL != 0) goto strlp1;
+		return TmpBL;
 	};
+
 };
 StrHash::StrHash(){
 	memset(this,0,sizeof StrHash);

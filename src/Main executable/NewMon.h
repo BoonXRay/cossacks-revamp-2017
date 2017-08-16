@@ -9,25 +9,30 @@ bool CheckBar(int x, int y, int Lx, int Ly);
 //returns (2|y| + |x|) / 2 if y > x
 inline int Norma(int x, int y)
 {
-	__asm
-	{
-		mov		eax, x
-		cmp		eax, 0
-		jge		ggg1
-		neg		eax
-		ggg1 : mov		ebx, y
-			   cmp		ebx, 0
-			   jge		ggg2
-			   neg		ebx
-			   ggg2 : mov		ecx, eax
-					  cmp		eax, ebx
-					  ja		ggg3
-					  mov		ecx, ebx
-					  ggg3 : add		ecx, eax
-							 add		ecx, ebx
-							 shr		ecx, 1
-							 mov		eax, ecx
-	}
+	// BoonXRay 13.08.2017
+	//__asm
+	//{
+	//	mov		eax, x
+	//	cmp		eax, 0
+	//	jge		ggg1
+	//	neg		eax
+	//	ggg1 : mov		ebx, y
+	//		   cmp		ebx, 0
+	//		   jge		ggg2
+	//		   neg		ebx
+	//		   ggg2 : mov		ecx, eax
+	//				  cmp		eax, ebx
+	//				  ja		ggg3
+	//				  mov		ecx, ebx
+	//				  ggg3 : add		ecx, eax
+	//						 add		ecx, ebx
+	//						 shr		ecx, 1
+	//						 mov		eax, ecx
+	//}
+	x = abs(x);
+	y = abs(y);
+	if (x > y) return ( 2 * x + y) / 2;
+	return (2 * y + x) / 2;
 }
 #pragma warning(default : 4035)
 
@@ -43,8 +48,6 @@ void BClrBar(int x, int y, int Lx);
 #define FP_FIND_DAMPOINT  8
 #define FP_CONCENTRATION  16
 void MakeRoundDamage(int x, int y, int r, word Damage, OneObject* Sender, word Attr);
-void AddToVisual(short uy, short x, short y, OneObject* OB, word FileID, word Sprite, int Param1, int Param2);
-void AddToVisual(short uy, short x, short y, OneObject* OB, word FileID, word Sprite, int Options);
 //Adding to visual options:
 #define AV_NORMAL      0x00000000
 #define AV_PULSING     0x00000001

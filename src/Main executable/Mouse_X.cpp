@@ -87,35 +87,43 @@ void GetMData( void* dest, void* src, int x, int y, int SSizeX, int SSizeY )
 	if (x1 + 32 > SSizeX)Lx = SSizeX - x1;
 	if (y1 + 32 > SSizeY)Ly = SSizeY - y1;
 	if (Lx <= 0 || Ly <= 0)return;
-	int sofs = int( src ) + x1 + y1*SSizeX;
-	int dofs = int( dest ) + bx + ( by << 5 );
-	int Lx4 = Lx >> 2;
-	int Lx1 = Lx & 3;
-	int adds = SSizeX - Lx;
-	int addd = 32 - Lx;
+	// BoonXRay 13.08.2017
+	//int sofs = int( src ) + x1 + y1*SSizeX;
+	//int dofs = int( dest ) + bx + ( by << 5 );
+	//int Lx4 = Lx >> 2;
+	//int Lx1 = Lx & 3;
+	//int adds = SSizeX - Lx;
+	//int addd = 32 - Lx;
 
-	__asm
+	//__asm
+	//{
+	//	push	esi
+	//	push	edi
+	//	mov		edx, Ly
+	//	mov		esi, sofs
+	//	mov		edi, dofs
+	//	cld
+	//	lpp1 : mov		ecx, Lx4
+	//		   jcxz	lpp2
+	//		   rep		movsd
+	//		   lpp2 : mov		ecx, Lx1
+	//				  jcxz	lpp3
+	//				  rep		movsb
+	//				  lpp3 : add		esi, adds
+	//						 add		edi, addd
+	//						 dec		edx
+	//						 jnz		lpp1
+	//						 pop		edi
+	//						 pop		esi
+	//}	
+	unsigned char * SrcPtr = reinterpret_cast<unsigned char *>(src)+x1 + y1*SSizeX;
+	unsigned char * DestPtr = reinterpret_cast<unsigned char *>(dest) + bx + (by << 5);
+	for (int i = 0; i < Ly; i++)
 	{
-		push	esi
-		push	edi
-		mov		edx, Ly
-		mov		esi, sofs
-		mov		edi, dofs
-		cld
-		lpp1 : mov		ecx, Lx4
-			   jcxz	lpp2
-			   rep		movsd
-			   lpp2 : mov		ecx, Lx1
-					  jcxz	lpp3
-					  rep		movsb
-					  lpp3 : add		esi, adds
-							 add		edi, addd
-							 dec		edx
-							 jnz		lpp1
-							 pop		edi
-							 pop		esi
+		memcpy(DestPtr, SrcPtr, Lx);
+		SrcPtr += SSizeX;
+		DestPtr += 32;
 	}
-
 }
 
 bool CmpMData( void* dest, void* src, int x, int y, int SSizeX, int SSizeY )
@@ -141,39 +149,49 @@ bool CmpMData( void* dest, void* src, int x, int y, int SSizeX, int SSizeY )
 	if (x1 + 32 > SSizeX)Lx = SSizeX - x1;
 	if (y1 + 32 > SSizeY)Ly = SSizeY - y1;
 	if (Lx <= 0 || Ly <= 0)return false;
-	int sofs = int( src ) + x1 + y1*SSizeX;
-	int dofs = int( dest ) + bx + ( by << 5 );
-	int Lx4 = Lx >> 2;
-	int Lx1 = Lx & 3;
-	int adds = SSizeX - Lx;
-	int addd = 32 - Lx;
-	bool notequal = false;
-	__asm
+	// BoonXRay 13.08.2017
+	//int sofs = int( src ) + x1 + y1*SSizeX;
+	//int dofs = int( dest ) + bx + ( by << 5 );
+	//int Lx4 = Lx >> 2;
+	//int Lx1 = Lx & 3;
+	//int adds = SSizeX - Lx;
+	//int addd = 32 - Lx;
+	//bool notequal = false;
+	//__asm
+	//{
+	//	push	esi
+	//	push	edi
+	//	mov		edx, Ly
+	//	mov		esi, sofs
+	//	mov		edi, dofs
+	//	cld
+	//	lpp1 : mov		ecx, Lx4
+	//		   jcxz	lpp2
+	//		   repe	cmpsd
+	//		   jne		noteq
+	//		   lpp2 : mov		ecx, Lx1
+	//				  jcxz	lpp3
+	//				  repe	cmpsb
+	//				  jne		noteq
+	//				  lpp3 : add		esi, adds
+	//						 add		edi, addd
+	//						 dec		edx
+	//						 jnz		lpp1
+	//						 jmp		lpp4
+	//						 noteq : mov		notequal, 1
+	//								 lpp4 : pop		edi
+	//										pop		esi
+	//}
+	//return notequal;
+	unsigned char * SrcPtr = reinterpret_cast<unsigned char *>(src) + x1 + y1*SSizeX;
+	unsigned char * DestPtr = reinterpret_cast<unsigned char *>(dest) + bx + (by << 5);
+	for (int i = 0; i < Ly; i++)
 	{
-		push	esi
-		push	edi
-		mov		edx, Ly
-		mov		esi, sofs
-		mov		edi, dofs
-		cld
-		lpp1 : mov		ecx, Lx4
-			   jcxz	lpp2
-			   repe	cmpsd
-			   jne		noteq
-			   lpp2 : mov		ecx, Lx1
-					  jcxz	lpp3
-					  repe	cmpsb
-					  jne		noteq
-					  lpp3 : add		esi, adds
-							 add		edi, addd
-							 dec		edx
-							 jnz		lpp1
-							 jmp		lpp4
-							 noteq : mov		notequal, 1
-									 lpp4 : pop		edi
-											pop		esi
+		if (memcmp(DestPtr, SrcPtr, Lx) != 0) return true;
+		SrcPtr += SSizeX;
+		DestPtr += 32;
 	}
-	return notequal;
+	return false;
 }
 
 void RestoreMData( void* scrn, void* buf, void* comp, int x, int y, int SSizeX, int SSizeY )
@@ -217,38 +235,57 @@ void RestoreMData( void* scrn, void* buf, void* comp, int x, int y, int SSizeX, 
 		return;
 	}
 
-	int src1 = int( buf ) + bx + ( by << 5 );
-	int srcom = int( comp ) + bx + ( by << 5 );
-	int scrof = int( scrn ) + x1 + y1*SSizeX;
+	// BoonXRay 13.08.2017
+	//int src1 = int( buf ) + bx + ( by << 5 );
+	//int srcom = int( comp ) + bx + ( by << 5 );
+	//int scrof = int( scrn ) + x1 + y1*SSizeX;
 	int addscr = SSizeX - Lx;
 	int add32 = 32 - Lx;
 
-	__asm
+	// BoonXRay 13.08.2017
+	//__asm
+	//{
+	//	push	esi
+	//	push	edi
+	//	mov		edx, Ly
+	//	mov		esi, src1
+	//	mov		ebx, srcom
+	//	mov		edi, scrof
+	//	cld
+	//	lpp0 : mov		ecx, Lx
+	//		   lpp1 : lodsb
+	//				  mov		ah, [edi]
+	//				  cmp		ah, [ebx]
+	//				  jnz		lpp2
+	//				  mov[edi], al
+	//				  lpp2 : inc		edi
+	//						 inc		ebx
+	//						 dec		ecx
+	//						 jnz		lpp1
+	//						 add		edi, addscr
+	//						 add		ebx, add32
+	//						 add		esi, add32
+	//						 dec		edx
+	//						 jnz		lpp0
+	//						 pop		edi
+	//						 pop		esi
+	//}
+	unsigned char * Ptr1 = reinterpret_cast<unsigned char *>(buf) + bx + (by << 5);
+	unsigned char *  PtrOm = reinterpret_cast<unsigned char *>(comp) + bx + (by << 5);
+	unsigned char *  PtrOf = reinterpret_cast<unsigned char *>(scrn) + x1 + y1*SSizeX;;
+	for (int i = 0; i < Ly; i++)
 	{
-		push	esi
-		push	edi
-		mov		edx, Ly
-		mov		esi, src1
-		mov		ebx, srcom
-		mov		edi, scrof
-		cld
-		lpp0 : mov		ecx, Lx
-			   lpp1 : lodsb
-					  mov		ah, [edi]
-					  cmp		ah, [ebx]
-					  jnz		lpp2
-					  mov[edi], al
-					  lpp2 : inc		edi
-							 inc		ebx
-							 dec		ecx
-							 jnz		lpp1
-							 add		edi, addscr
-							 add		ebx, add32
-							 add		esi, add32
-							 dec		edx
-							 jnz		lpp0
-							 pop		edi
-							 pop		esi
+		for (int j = 0; j < Lx; j++)
+		{
+			if (*PtrOf == *PtrOm)
+				*PtrOf = *Ptr1;
+			Ptr1++;
+			PtrOf++;
+			PtrOm++;
+		}
+		PtrOf += addscr;
+		PtrOm += add32;
+		Ptr1 += add32;
 	}
 }
 

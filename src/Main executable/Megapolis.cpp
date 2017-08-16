@@ -37,7 +37,6 @@ extern City CITY[8];
 bool CheckTowersPresence();
 void CheckArmies( City* CT );
 
-int CheckPositionForDanger( int x, int y, int z );
 int GetTopology( int x, int y );
 void A_BitvaLink( AI_Army* ARM );
 void BuildWithSelected( byte NI, word ObjID, byte OrdType );
@@ -462,27 +461,7 @@ int CheckFieldWorker( OneObject* OB, City* CT )
 	};
 	return -1;
 };
-Area* GetAr( int rx, int ry )
-{
-	int tx = rx >> 10;
-	int ty = ry >> 10;
-	int ofst = tx + ( ty << TopSH );
-	if ( ofst >= 0 && ofst < MaxTop )
-	{
-		word ti = TopRef[ofst];
-		Area* AR = nullptr;
-		bool OurZone = false;
-		if ( ti != 0xFFFF )
-		{
-			return TopMap + ti;
-		};
-	};
-	return nullptr;
-};
-bool CheckPL( int rx, int ry )
-{
-	return !CheckBar( ( rx >> 8 ) - 2, ( ry >> 8 ) - 2, 5, 5 );
-};
+
 int Norma( int, int );
 
 //returns -1
@@ -1441,49 +1420,6 @@ void City::RefreshAbility()
 	}
 }
 
-void RepairControl( City* CT )
-{
-	byte NI = CT->NI;
-	word PS;
-	for ( int i = 0; i < MAXOBJECT; i++ )
-	{
-		OneObject* OB = Group[i];
-		if ( OB&&OB->capBuilding && ( !OB->delay ) && OB->Stage == OB->NStages )
-		{
-			int maxl = OB->MaxLife;
-			if ( OB->Life < maxl )
-			{
-				PS = FindPeasant( OB->x, OB->y, NI );
-				if ( PS != 0xFFFF )
-				{
-					OneObject* OBP = Group[PS];
-					if ( OBP )
-					{
-
-						OBP->BuildObj( OB->Index, 128, false, 0 );
-					};
-					OB->delay = 200;
-					OB->MaxDelay = 200;
-				};
-			};
-			if ( OB->Life < ( maxl << 1 ) )
-			{
-				PS = FindPeasant( OB->x, OB->y, NI );
-				if ( PS != 0xFFFF )
-				{
-					OneObject* OBP = Group[PS];
-					if ( OBP )
-					{
-
-						OBP->BuildObj( OB->Index, 128, false, 0 );
-					};
-					OB->delay = 200;
-					OB->MaxDelay = 200;
-				};
-			};
-		};
-	};
-};
 extern byte NPORTS;
 extern short PORTSX[32];
 extern short PORTSY[32];
@@ -3217,12 +3153,7 @@ void UpgradeMineBrain( Idea* ID )
 
 	ID->ClearIdea();
 };
-int MUtbl[10] = { 100,100,80,60,50,40,30,30,20,10 };
-int GetMineMult( int n )
-{
-	if ( n < 10 )return MUtbl[n];
-	else return MUtbl[9];
-}
+
 int GetMaxCostPercent( byte Nat, word* Cost )
 {
 	int maxp = 0;
@@ -3636,32 +3567,11 @@ public:
 };
 int wrs = 5;
 bool CheckGateUpgrade( OneObject* OB );
-bool CheckGateUpXY( int x, int y )
-{
-	int LI = GetLI( x, y );
-	if ( LI >= 0 && LI < MaxLI )
-	{
-		WallCell* WCL = WRefs[LI];
-		if ( WCL )
-		{
-			OneObject* OPB = Group[WCL->OIndex];
-			if ( OPB )
-			{
-				return CheckGateUpgrade( OPB );
-			};
-		};
-	};
-	return false;
-}
 
 void CreateGates( OneObject* OB );
 void BuildWallLink( OneObject* OB );
 void LeaveMineLink( OneObject* OBJ );
 void BuildWallBrain( Idea* ID )
-{
-}
-
-void CreateWallBar( int tx, int ty, int r, City* CT )
 {
 }
 
@@ -3690,20 +3600,28 @@ void HandleGeology()
 				int y = ( OSP->y >> ( 5 + ADDSH ) ) - MiniY;
 				if ( x > 0 && x < MiniLx&&y>0 && y < MiniLy )
 				{
-					int ofst = int( ScreenPtr ) + x + minix + ( miniy + y )*ScrWidth;
-					__asm {
-						push	edi
-						mov		edi, ofst
-						mov		edx, ScrWidth
-						mov		al, 0xFB
-						mov[edi], al
-						mov[edi + 1], al
-						mov[edi - 1], al
-						mov[edi + edx], al
-						neg     edx
-						mov[edi + edx], al
-						pop		edi
-					};
+					// BoonXRay 13.08.2017
+					//int ofst = int( ScreenPtr ) + x + minix + ( miniy + y )*ScrWidth;
+					//__asm {
+					//	push	edi
+					//	mov		edi, ofst
+					//	mov		edx, ScrWidth
+					//	mov		al, 0xFB
+					//	mov[edi], al
+					//	mov[edi + 1], al
+					//	mov[edi - 1], al
+					//	mov[edi + edx], al
+					//	neg     edx
+					//	mov[edi + edx], al
+					//	pop		edi
+					//};
+					// '+' on minimap
+					unsigned char * Ptr = reinterpret_cast<unsigned char *>(ScreenPtr) + x + minix + (miniy + y)*ScrWidth;
+					*(Ptr) = 0xFB;
+					*(Ptr + 1) = 0xFB;
+					*(Ptr - 1) = 0xFB;
+					*(Ptr + ScrWidth) = 0xFB;
+					*(Ptr - ScrWidth) = 0xFB;
 				};
 			};
 		};
@@ -4585,29 +4503,7 @@ public:
 	int ydest;
 	int time;
 };
-int GetTopDanger( int Top, byte NI )
-{
-	if ( GNFO.EINF[NI] )return 0;
-	Area* AR = TopMap + Top;
-	int MyX = AR->x >> 2;
-	int MyY = AR->y >> 2;
-	ArmyInfo* AINF = GNFO.EINF[NI]->GAINF.AINF;
-	int Na = GNFO.EINF[NI]->GAINF.NArmy;
-	int EnForces = 0;
-	for ( int i = 0; i < Na; i++ )
-	{
-		if ( Norma( int( AINF->MaxX ) - MyX, int( AINF->MaxY ) - MyY ) < 10 ||
-			Norma( int( AINF->MaxX ) - MyX, int( AINF->MinY ) - MyY ) < 10 ||
-			Norma( int( AINF->MinX ) - MyX, int( AINF->MaxY ) - MyY ) < 10 ||
-			Norma( int( AINF->MinX ) - MyX, int( AINF->MinY ) - MyY ) < 10 )
-		{
-			int curforce = AINF->N;//>NSword+AINF->NCaval+(AINF->NStrel<<1);
-			EnForces += curforce;
-		};
-		AINF++;
-	};
-	return EnForces;
-};
+
 int GetTopDanger( int Top, int r, int NI )
 {
 	if ( GNFO.EINF[NI] )return 0;
@@ -4632,81 +4528,7 @@ int GetTopDanger( int Top, int r, int NI )
 	};
 	return EnForces;
 };
-/*
-#define AS_ARTILLERY 0x10000
-#define AS_SHIPS     0x20000
-#define AS_TOWERS    0x40000
-#define AS_BATTLE    0x80000
-byte GetDangValue(int x,int y);
-int FastCheckPosDanger(int x,int y);
-DWORD AnalyseArmyPosition(City* CT,AI_Army* ARM,int xp,int yp){
-	int MaxDang=0;
-	int x=xp>>6;
-	int y=yp>>6;
-	int odis=4;
-	int NExBrigs=ARM->NExBrigs;
-	int Nx=sqrt(NExBrigs);
-	int Ny=Nx;
-	if(Nx*Ny<NExBrigs)Nx++;
-	if(Nx*Ny<NExBrigs)Ny++;
-	int x0=x-(((Nx-1)*odis)>>1);
-	int y0=y-(((Ny-1)*odis)>>1);
-	int ps=0;
-	int nn=0;
-	int Dang=0;
-	DWORD State=0;
-	for(int ix=0;ix<Nx;ix++){
-		for(int iy=0;iy<Ny;iy++){
-			if(nn<NExBrigs){
-				int x1=x0+ix*odis;
-				int y1=y0+iy*odis;
-				CheckTopPos(x,y,&x1,&y1);
-				byte D=GetDangValue(x1>>1,y1>>1);
-				if(D>128)State|=AS_SHIPS;
-				else
-				if(D)State|=AS_ARTILLERY;
-				//int xx=(x1<<6)+32;
-				//int yy=(y1<<6)+32;
-				int Dang=FastCheckPosDanger(x1-2,y1-2);
-				if(Dang>MaxDang)MaxDang=Dang;
-				Dang=FastCheckPosDanger(x1-2,y1+1);
-				if(Dang>MaxDang)MaxDang=Dang;
-				Dang=FastCheckPosDanger(x1+2,y1-2);
-				if(Dang>MaxDang)MaxDang=Dang;
-				Dang=FastCheckPosDanger(x1+2,y1+2);
-				if(Dang>MaxDang)MaxDang=Dang;
-				if(Dang)State|=AS_TOWERS;
-				ps+=5;
-				nn++;
-			};
-		};
-	};
-	int MyX=x>>2;
-	int MyY=y>>2;
-	int EnForces=0;
-	int MaxForce=0;
-	int MaxForceX;
-	int MaxForceY;
-	//int DoBitva=false;
-	int rmin=4;
-	int Endst=8;
-	if(ARM->Spec==2){
-		Endst=4;
-		rmin=2;
-	};
-	DWORD DNG0=GetEnemyForce(MyX,MyY,0,rmin);
-	DWORD DNG=DNG0+GetEnemyForce(MyX,MyY,rmin+1,Endst);
-	if(DNG0)State|=AS_BATTLE;
-	int cx=CT->CenterX>>1;
-	int cy=CT->CenterY>>1;
-	int R=Norma(MyX-cx,MyY-cy);
-	if(R<10)DNG>>=3;
-	else if(R<25)DNG>>=1;
-	if(DNG>65000)DNG=65000;
-	if(MaxDang>500)MaxDang=200;
-	return State|DNG|(MaxDang<<24);
-};
-*/
+
 word GetNextGreCell( byte NI, int F, int Start );
 word GetNextDivCell( byte NI, int F, int Start );
 bool HandleArchers( AI_Army* ARM, int R );
@@ -6310,21 +6132,6 @@ void AI_Army::SetZombi()
 
 //--------------------------------------------------------------//
 
-
-
-int CheckPositionForDanger( int x, int y, int z )
-{
-	EnemyInfo* EIN = GNFO.EINF[CURRENTAINATION];
-	DangerInfo* DIF = EIN->DINF;
-	int MAXR = DIF->MaxR + 128;
-	for ( int i = 0; i < EIN->NDINF; i++ )
-	{
-		int dst = Norma( DIF->x - x, DIF->y - y ) + ( ( z - DIF->z ) << 1 );
-		if ( dst <= MAXR )return DIF->UpgradeLevel;
-		DIF++;
-	};
-	return 0;
-};
 byte GetDangValue( int x, int y );
 int FastCheckPosDanger( int x, int y )
 {

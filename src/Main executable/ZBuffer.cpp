@@ -18,6 +18,8 @@
 #include "GP_Draw.h"
 #include "3DGraph.h"
 
+#include <algorithm>
+
 byte CurDrawNation = 0;
 
 class ZElement//28 bytes
@@ -447,35 +449,57 @@ void SortWords( int NWords, word* Data, short* Factor )
 	{
 		return;
 	}
-
-	__asm
+	// BoonXRay 14.08.2017
+	//__asm	
 	{
-		push	esi
-		push	edi
-		SW0 : mov		edi, Data
-			  mov		esi, Factor
-			  mov		ebx, 1
-			  mov		ecx, NWords;
-		dec		ecx
-			SW1 : mov		ax, [esi + 2]
-			cmp		ax, [esi]
-			jge		SW3
-			mov		dx, [esi]
-			mov[esi + 2], dx
-			mov[esi], ax
-			mov		ax, [edi]
-			mov		dx, [edi + 2]
-			mov[edi], dx
-			mov[edi + 2], ax
-			xor		ebx, ebx
-			SW3 : add		esi, 2
-			add		edi, 2
-			dec		ecx
-			jnz		SW1
-			or ebx, ebx
-			jz		SW0
-			pop		edi
-			pop		esi
+		//push	esi
+		//push	edi
+		//SW0 : 
+		bool IsOrdered;
+		do
+		{
+			//mov		edi, Data
+			//mov		esi, Factor
+			//mov		ebx, 1
+			//mov		ecx, NWords;
+			//dec		ecx
+			unsigned short * TmpEDI = Data;
+			short *TmpESI = Factor;
+			IsOrdered = true;
+			for (int i = 0; i < NWords - 1; ++i)
+			{
+				//SW1:
+					//mov		ax, [esi + 2]
+					//cmp		ax, [esi]
+					//jge		SW3
+					//mov		dx, [esi]
+					//mov[esi + 2], dx
+					//mov[esi], ax
+					//mov		ax, [edi]
+					//mov		dx, [edi + 2]
+					//mov[edi], dx
+					//mov[edi + 2], ax
+					//xor		ebx, ebx
+
+				//SW3:
+					//add		esi, 2
+					//add		edi, 2
+					//dec		ecx
+					//jnz		SW1
+					//or ebx, ebx
+					//jz		SW0
+					//pop		edi
+					//pop		esi
+				if (TmpESI[1] < TmpESI[0])
+				{
+					std::swap(TmpESI[0], TmpESI[1]);
+					std::swap(TmpEDI[0], TmpEDI[1]);
+					IsOrdered = false;
+				}
+				TmpESI++;
+				TmpEDI++;
+			}
+		} while (!IsOrdered);
 	}
 }
 

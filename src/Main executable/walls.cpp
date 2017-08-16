@@ -23,7 +23,6 @@ extern word TexList[128];
 extern word NTextures;
 WallCharacter* GetWChar( OneObject* OB );
 int GetWCharID( OneObject* OB );
-void AddToVisual( short uy, short x, short y, OneObject* OB, word FileID, word Sprite );
 
 WallCluster::WallCluster()
 {

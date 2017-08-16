@@ -51,8 +51,7 @@ char GetBestDirection(MotionField* MFI, int xd, int yd, int LX, char CurDir) {
 	return resdir;
 
 };
-bool CheckUnloadProcess(OneObject* OB);
-void CreateUnloadProcess(OneObject* OB, int x, int y);
+
 void RetLock(OneObject* OB) {
 	int LX = OB->Lx;
 	MotionField* MFI = MFIELDS + OB->LockType;
@@ -257,63 +256,6 @@ void WaterNewMonsterSendToLink(OneObject* OB) {
 		}
 		if (OB->GLock)MFIELDS[1].BSetBar(xxx, yyy, LX);
 	};
-	/*
-	int distan=OB->DistTo(xx1,yy1);
-	int LX2=OB->Lx>>1;
-	MotionField* MFI=MFIELDS+OB->LockType;
-	if(distan<12&&tt){
-		//if(CheckUnloadProcess(OB))CreateUnloadProcess(OB,xx1,yy1);
-		if(OB->GLock)MFI->BClrBar(OB->x,OB->y,OB->Lx);
-		bool LOCKR=MFI->CheckBar(OB->x-1,OB->y-1,OB->Lx+2,OB->Lx+2);
-		if(OB->GLock)MFI->BSetBar(OB->x,OB->y,OB->Lx);
-		if(LOCKR){
-			OB->LocalOrder->info.MoveToXY.PrevDist=0;
-			tt=0;
-			OB->DeletePath();
-			OB->DestX=0;
-			//OB->Speed=0;
-			char dirr=OB->LocalOrder->info.MoveToXY.Times;
-			dirr=GetBestDirection(MFI,OB->x,OB->y,OB->Lx,dirr);
-			OB->LocalOrder->info.MoveToXY.Times=dirr;
-			return;
-		};
-	};
-	if(OB->DistTo(xx1,yy1)<=1){
-		OB->LocalOrder->info.MoveToXY.PrevDist=0;
-		char dirr=OB->LocalOrder->info.MoveToXY.Times;
-		char Ddir=dirr-OB->RealDir;
-		if(abs(Ddir)<4){
-			RunLeftVeslo(OB,false);
-			RunRightVeslo(OB,false);
-			if(int(OB->LocalOrder)){
-				Order1* Loc1=OB->LocalOrder->NextOrder;
-				OB->FreeOrdBlock(OB->LocalOrder);
-				OB->LocalOrder=Loc1;
-			};
-			//Is it on the cost?
-			if(OB->newMons->Transport){
-				int xx1=OB->RealX+int(TCos[OB->RealDir])*16;
-				int yy1=OB->RealY+int(TSin[OB->RealDir])*16;
-				if(!MFIELDS->CheckBar((xx1>>8)-2,(yy1>>8)-2,5,5)){
-					OB->DstX=xx1;
-					OB->DstY=yy1;
-				};
-			};
-		}else{
-			if(Ddir>0){
-				OB->RealDir+=3;
-				OB->GraphDir=OB->RealDir;
-				RunLeftVeslo(OB,false);
-				RunRightVeslo(OB,true);
-			}else{
-				OB->RealDir-=3;
-				OB->GraphDir=OB->RealDir;
-				RunLeftVeslo(OB,true);
-				RunRightVeslo(OB,false);
-			};
-		};
-	}else OB->CreatePath(xx1-LX2,yy1-LX2);
-	*/
 };
 //transporting of units
 #define TR_LASY      0
@@ -368,7 +310,6 @@ public:
 	void Demobilisation();
 	bool FindStartPoint();
 	bool FindConcPoint();
-	bool CheckNearCost();
 	bool SetFinalPoint(int x, int y);
 	int FindNearestUnitIndex(int x, int y);
 	bool CheckUnloadAbility();
@@ -577,7 +518,7 @@ int TransProcess::FindNearestUnitIndex(int x, int y) {
 	};
 	return IDI;
 };
-void TransportLink(OneObject* OB);
+
 void TransProcess::RefreshUnits() {
 	int poss = 0;
 	for (int i = 0; i < NUnits; i++) {
@@ -834,9 +775,7 @@ void LeaveShipLink(OneObject* OB) {
 	}
 	else OB->DeleteLastOrder();
 };
-void TotalLeaveShip(OneObject* OB) {
-	for (int i = 0; i < OB->NInside; i++)LeaveShip(OB, 2);
-};
+
 void NewMonsterSendToLink(OneObject* OB);
 
 //Transport ships logic
@@ -1063,15 +1002,6 @@ bool CheckTransportOnParking(OneObject* TRA, int x, int y)
 			TR->SetFinalPoint(x, y);
 			return true;
 		}
-	}
-	return false;
-}
-
-bool CheckUnloadProcess(OneObject* OB) 
-{
-	if (OB) 
-	{
-		return (!OB->GlobalOrder) && OB->Inside;
 	}
 	return false;
 }
@@ -1358,14 +1288,7 @@ void CreateFishMap() {
 			if (MFIELDS[1].CheckBar(x << (FishSX + 1), y << (FishSX + 1), 2 << FishSX, 2 << FishSX))FishMap[x + y*FishLx] = 2;
 		};
 };
-byte TestFishMap(int x, int y) {
-	if (x >= 0 && y >= 0 && x < FishLx&&y < FishLx) {
-		//if(FishMap[x+y*FishLx])return 2;
-		if (UnitsField.CheckBar(x << (FishSX + 1), y << (FishSX + 1), 2 << FishSX, 2 << FishSX) ||
-			MFIELDS[1].CheckBar(x << (FishSX + 1), y << (FishSX + 1), 2 << FishSX, 2 << FishSX))return 1;
-	};
-	return 0;
-};
+
 void FishingLink(OneObject* OB);
 void OneObject::Fishing() {
 	if (LocalOrder)return;

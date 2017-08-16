@@ -21,47 +21,6 @@ extern bool RecordMode;
 extern byte PlayGameMode;
 char CURLOG[32];
 
-void WriteRec( char* s )
-{
-	if ( !( PlayGameMode || RecordMode ) )
-	{
-		return;
-	}
-
-	if ( GetTickCount() - prevrtime > 10000 )
-	{
-		if ( FX )
-		{
-			fclose( FX );
-			if ( PlayGameMode )
-			{
-				FX = fopen( "lox1.log", "a" );
-				strcpy( CURLOG, "lox1.log" );
-			}
-			else
-			{
-				FX = fopen( "lox0.log", "a" );
-				strcpy( CURLOG, "lox0.log" );
-			}
-		}
-		prevrtime = GetTickCount();
-	}
-	if ( !FX )
-	{
-		if ( PlayGameMode )
-		{
-			FX = fopen( "lox1.log", "a" );
-			strcpy( CURLOG, "lox1.log" );
-		}
-		else
-		{
-			FX = fopen( "lox0.log", "a" );
-			strcpy( CURLOG, "lox0.log" );
-		}
-	}
-	fprintf( FX, s );
-}
-
 extern int tmtmt;
 extern DWORD RealTime;
 

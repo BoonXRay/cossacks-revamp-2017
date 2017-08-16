@@ -147,180 +147,6 @@ struct AskMove
 	char dy;
 };
 
-int NAsk;//Количество запросов
-AskMove Ask[8192];//Массив запросов
-bool FailLink[8192];//Массив неразрешенных перемещений
-word CurInd;
-word IDMap[256][256];
-word RQMap[256][256];//:3-запещенное направление ..
-					 //:13-номер в таблице запросов
-
-//Добавить запрос в систему запросов на перемещение
-void AddAsk( word ReqID, byte x, byte y, char zdx, char zdy )
-{
-	//DEBUGGING
-	OneObject* OB = Group[ReqID];
-	OB->AskMade = true;
-	//ENDDEBUG
-	__asm {
-		//		inc		NAsk
-		mov		eax, NAsk
-		shl		eax, 3
-		add		eax, offset Ask
-		mov		bx, ReqID
-		mov		word ptr[eax], bx
-		mov		word ptr[eax + 2], 0FFFFh
-		mov		bl, x
-		mov		bh, y
-		mov		word ptr[eax + 4], bx
-		mov		bl, zdx
-		mov		bh, zdy
-		mov		word ptr[eax + 6], bx
-		inc		NAsk
-	};
-};
-
-//Обработка запросов, сначала освобождаем все старые клетки
-//потом заполняем и проверяем
-void PrepareProcessing()
-{
-	NAsk = 0;
-	//Only for DEBUGGIONG 
-	for (int i = 0; i < MAXOBJECT; i++)
-	{
-		OneObject* OB = Group[i];
-		if (OB)
-		{
-			OB->AskMade = false;
-		}
-	}
-}
-
-//Inline- команды построения внутренних команд
-int Ofst;
-char* NowBuf;
-inline void ChkOfst( int size )
-{
-	if (Ofst >= OneAsmSize - size - 5 - 4)
-	{
-		char* NN = GetAsmBlock();
-		if (int( NN ))
-		{
-			NowBuf[Ofst] = 7;
-			memcpy( &NowBuf[Ofst + 1], &NN, 4 );
-			memcpy( &NowBuf[OneAsmSize - 4], &NN, 4 );
-			NowBuf = NN;
-			Ofst = 0;
-			memcpy( &NowBuf[OneAsmSize - 4], &Ofst, 4 );
-		}
-		else
-			NowBuf[Ofst] = 0;
-	};
-};
-inline void cmSetXY( char x, char y )
-{
-	ChkOfst( 3 );
-	//assert(abs(x)<2&&abs(y)<2);
-	NowBuf[Ofst] = 4;
-	NowBuf[Ofst + 1] = x;
-	NowBuf[Ofst + 2] = y;
-	Ofst += 3;
-};
-inline void cmSetXYDir( byte x, byte y, byte dir, byte n )
-{
-	ChkOfst( 4 );
-	NowBuf[Ofst] = 18;
-	NowBuf[Ofst + 1] = x;
-	NowBuf[Ofst + 2] = y;
-	NowBuf[Ofst + 3] = ( dir & 7 ) | ( n << 4 );
-	Ofst += 4;
-};
-inline void cmSetXYDirX( byte x, byte y, char dx, char dy, byte n )
-{
-	ChkOfst( 4 );
-	//assert(dx<2&&dy<2);
-	byte dr = drr[( dx + 1 ) * 3 + dy + 1];
-	NowBuf[Ofst] = 18;
-	NowBuf[Ofst + 1] = x;
-	NowBuf[Ofst + 2] = y;
-	NowBuf[Ofst + 3] = ( dr & 7 ) | ( n << 4 );
-	Ofst += 4;
-};
-
-inline void cmChkXY( byte x, byte y )
-{
-	ChkOfst( 3 );
-	NowBuf[Ofst] = 44;
-	NowBuf[Ofst + 1] = x;
-	NowBuf[Ofst + 2] = y;
-	Ofst += 3;
-};
-inline void cmSetDir( int dx, int dy )
-{
-	if (dx == 0 && dy == 0)return;
-	byte dr = drr[( dx + 1 ) * 3 + dy + 1];
-	ChkOfst( 2 );
-	NowBuf[Ofst] = 5;
-	NowBuf[Ofst + 1] = dr;
-	Ofst += 2;
-};
-void cmSetDirD( byte dr )
-{
-	ChkOfst( 2 );
-	NowBuf[Ofst] = 5;
-	NowBuf[Ofst + 1] = dr & 7;
-	Ofst += 2;
-};
-inline void cmLoadAnm( byte stype, byte dtype, word kind )
-{
-	ChkOfst( 5 );
-	NowBuf[Ofst] = 6;
-	NowBuf[Ofst + 1] = dtype;
-	NowBuf[Ofst + 2] = stype;
-	NowBuf[Ofst + 3] = byte( kind );
-	NowBuf[Ofst + 4] = 0;
-	Ofst += 5;
-}
-
-inline void cmPerfAnm( byte n )
-{
-	ChkOfst( 2 );
-	NowBuf[Ofst] = 8;
-	NowBuf[Ofst + 1] = n;
-	Ofst += 2;
-}
-
-inline void cmRet()
-{
-	NowBuf[Ofst] = 1;
-	Ofst += 1;
-}
-
-inline void cmDone()
-{
-	NowBuf[Ofst] = 3;
-	Ofst += 1;
-}
-
-//Переместить объект в точку (x,y)
-
-typedef byte xxx[64];
-
-void COrd( Order1* ordr )
-{
-	if (!int( ordr ))
-	{
-		return;
-	}
-
-	if (( int( ordr ) - int( OrdBuf ) ) / sizeof Order1 >= MaxOrdCount)
-	{
-		int RRRR = ( int( ordr ) - int( OrdBuf ) ) / sizeof Order1;
-	}
-}
-
-void SendToLink( OneObject* OBJ );
-
 //Атаковать point
 void AttackPointLink( OneObject* OBJ );
 
@@ -478,31 +304,10 @@ void ContinueAttackWallLink( OneObject* OBJ )
 
 }
 
-void MakeExpl( int xx, int yy );
-
-void RestoreLock( int x, int y, int lx, int ly );
-
 int GetHeight( int, int );
 
 void BClrPt( int x, int y );
 
-void DelWall( int x, int y )
-{
-	int LI = GetLI( x, y );
-	if (LI >= 0 && LI < MaxLI)
-	{
-		WallCell* WCL = WRefs[LI];
-		if (WCL&&WCL->Sprite < 32)
-		{
-			OneObject* OB = Group[WCL->OIndex];
-			if (OB)
-			{
-				WCL->Sprite = 96 + ( WCL->Sprite & 15 );
-				OB->Die();
-			};
-		};
-	};
-};
 void EliminateBuilding( OneObject* OB )
 {
 	if (OB&&OB->NewBuilding)
@@ -1497,94 +1302,6 @@ void WaitForRepairLink( OneObject* OBJ )
 extern bool EUsage[8192];
 extern word LastAnmIndex;
 extern AnmObject* GAnm[8192];
-word NucList[128];
-word NucSN[128];
-bool NDone[128];
-word NNuc;
-
-//Zero NucList, NucSN, NNuc
-void InitNucList()
-{
-	memset( NucList, 255, sizeof NucList );
-	memset( NucSN, 255, sizeof NucSN );
-	NNuc = 0;
-}
-
-void RegisterNuc( word ID )
-{
-	if (!EUsage[ID])return;
-	for (int i = 0; i < 128; i++)
-	{
-		if (NucList[i] == 0xFFFF)
-		{
-			NucList[i] = ID;
-			NucSN[i] = GAnm[ID]->ASerial;
-			NDone[i] = false;
-			NNuc++;
-			return;
-		};
-	};
-};
-/*void HandleAntiNuc(){
-	if(!NNuc)return;
-	for(int i=0;i<128;i++){
-		if(NucList[i]!=0xFFFF){
-			if(!EUsage[NucList[i]]){
-				NucList[i]=0xFFFF;
-				NNuc--;
-			}else{
-				AnmObject* EO=GAnm[NucList[i]];
-				if(EO->ASerial!=NucSN[i]){
-					NucList[i]=0xFFFF;
-					NNuc--;
-				}else
-				if(!NDone[i]){
-					byte NMS=EO->NMask;
-					int dpx=EO->destX;
-					int dpy=EO->destY;
-					word AID=0xFFFF;
-					int adist=1000;
-					int diss;
-					//find nearest enemy antinuclear;
-					for(int j=0;j<MAXOBJECT;j++){
-						OneObject* OB=Group[j];
-						if(OB&&OB->RAmount&&OB->AntiNuc&&!(OB->NMask&NMS)){
-							diss=abs(dpx-int(OB->x))+abs(dpy-int(OB->y));
-							if(diss<adist){
-								AID=j;
-								adist=diss;
-							};
-						};
-					};
-					if(AID!=0xFFFF){
-						OneObject* OB=Group[AID];
-						OB->RAmount--;
-						//CreateLeadingObject(OB->Weap,((OB->x<<5)+OB->wepX)<<2,((OB->y<<5)+OB->wepY)<<2,128,OB->NMask,OB,NucList[i]);
-						NDone[i]=true;
-					};
-				};
-			};
-		};
-	};
-};*/
-/*void ShowNucl(){
-	if(!NNuc)return;
-	for(int i=0;i<128;i++){
-		if(NucList[i]!=0xFFFF){
-			AnmObject* EO=GAnm[NucList[i]];
-			int xx=minix+(EO->x>>16);
-			int yy=miniy+(EO->y>>16);
-			Hline(xx-1,yy,xx+1,255);
-			Vline(xx,yy-1,yy+1,255);
-			xx=minix+(EO->destX>>1);
-			yy=minix+(EO->destY>>1);
-			Hline(xx-2,yy,xx-1,clrYello);
-			Hline(xx+1,yy,xx+2,clrYello);
-			Vline(xx,yy-2,yy-1,clrYello);
-			Vline(xx,yy+1,yy+2,clrYello);
-		};
-	};
-};*/
 
 //**************************************************//
 //                                                  //
@@ -1596,7 +1313,6 @@ void RegisterNuc( word ID )
 //Zero NucList, NucSN, NNuc
 void InitGame()
 {
-	InitNucList();
 }
 
 typedef char* lpchar;

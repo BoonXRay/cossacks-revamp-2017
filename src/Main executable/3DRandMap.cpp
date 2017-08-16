@@ -4458,30 +4458,48 @@ void ShowNatDeal()
 	return;
 	int adx = ScrWidth - NATLX;
 	int sptr = int( ScreenPtr ) + ScrWidth * 100;
-
-	__asm
+	// BoonXRay 06.08.2017
+	//__asm
 	{
-		push	esi
-		push	edi
-		mov		edi, sptr
-		mov		esi, NatDeals
-		cld
-		mov		ebx, C_NATLX
-		lpp1 : mov     edx, C_NATLX
-			   lpp2 : lodsb
-					  shr		al, 4
-					  shl		al, 2
-					  add		al, 0xD0
-					  //mov		ecx,C_NATLX>>2
-					  stosb
-					  dec		edx
-					  jnz     lpp2
-					  //rep		movsd
-					  add		edi, adx
-					  dec		ebx
-					  jnz		lpp1
-					  pop		edi
-					  pop		esi
+		//push	esi
+		//push	edi
+		//mov		edi, sptr
+		unsigned int TmpEDI = sptr;
+		//mov		esi, NatDeals
+		unsigned int TmpESI = reinterpret_cast<unsigned int>(NatDeals);
+		//cld
+		//mov		ebx, C_NATLX
+		unsigned int TmpEBX = C_NATLX;
+		unsigned int TmpEDX = 0;
+		unsigned char TmpAL = 0;
+	lpp1 : 
+		//mov     edx, C_NATLX
+		TmpEDX = C_NATLX;
+	lpp2 : 
+		//lodsb
+		TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+		TmpESI++;
+		//shr		al, 4
+		TmpAL >>= 4;
+		//shl		al, 2
+		TmpAL <<= 2;
+		//add		al, 0xD0
+		TmpAL += 0xD0;
+		//stosb
+		*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+		TmpEDI++;
+		//dec		edx
+		TmpEDX--;
+		//jnz     lpp2
+		if (TmpEDX != 0) goto lpp2;
+		//add		edi, adx
+		TmpEDI += adx;
+		//dec		ebx
+		TmpEBX--;
+		//jnz		lpp1
+		if (TmpEBX != 0) goto lpp1;
+		//pop		edi
+		//pop		esi
 	}
 }
 
@@ -6213,8 +6231,6 @@ word LinkSys::GetLockPt( int x, int y )
 	return Map[x + y*Nx];
 }
 
-void Draw_GRASS();
-
 void GenerateWithStyle( char* terr )
 {
 	GPROG.SetCurrentStage( 'FTEX' );
@@ -6722,56 +6738,7 @@ void FAST_RM_Load( SaveBuf* SB, int x, int y )
 extern byte trans4[65536];
 extern byte trans8[65536];
 byte carr[39] = { 47,241,85,85,45,45,47,87,45,87,47,85,241,85,85,45,47,241,85,85,45,47,85,45,45,47,85,91,45,47,85 };
-void Draw1( int x, int y )
-{
-	if ( x<0 || x>RealLx || y<4 || y>RealLy )return;
-	int ofs = int( ScreenPtr ) + x + y*ScrWidth;
-	int xx1 = int( trans8 );
-	byte c = carr[randoma[ofs & 8191] % 10];
-	__asm {
-		mov eax, ofs
-		xor ebx, ebx
-		mov bl, c
-		mov bh, byte ptr[eax]
-		mov dl, [trans8 + ebx]
-		mov[eax], dl
-		add eax, ScrWidth
-		mov bh, byte ptr[eax]
-		mov dl, byte ptr[trans8 + ebx]
-		mov[eax], dl
-		add eax, ScrWidth
-		mov bh, byte ptr[eax]
-		mov dl, byte ptr[trans8 + ebx]
-		mov[eax], dl
-		add eax, ScrWidth
-		mov bh, byte ptr[eax]
-		mov dl, byte ptr[trans8 + ebx]
-		mov[eax], dl
-		mov bh, 0
-		inc eax
-		mov bl, byte ptr[eax]
-		mov dl, byte ptr[trans4 + ebx]
-		mov[eax], dl
-		inc eax
-		sub eax, ScrWidth
-		mov bl, byte ptr[eax]
-		mov dl, byte ptr[trans4 + ebx]
-		mov[eax], dl
-	};
-};
-void Draw_GRASS()
-{
-	/*
-	int pp=0;
-	for(int iy=0;iy<400;iy+=2)
-		for(int ix=0;ix<400;ix++){
-			int r=200-Norma(ix-200,iy-200);
-			int p=randoma[pp&8191]%200;
-			if(p<r)Draw1(ix+200,(iy>>1)+200);
-			pp++;
-		};
-	*/
-};
+
 byte GrassMask[256] = {
 	0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
 	0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
@@ -6793,61 +6760,6 @@ byte GrassMask[256] = {
 	0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
 	0,1,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
 
-void ProlongGrass( int x, int y )
-{
-	if ( x<0 || x>RealLx || y<4 || y>RealLy )return;
-	int ofs = int( ScreenPtr ) + x + y*ScrWidth;
-	__asm {
-		push edx
-
-		mov edx, ScrWidth
-		xor eax, eax
-		mov ebx, ofs
-		mov al, [ebx]
-		cmp byte ptr[GrassMask + eax], 0
-		je xsd
-
-
-		sub ebx, edx
-		mov ah, [ebx];
-		mov cl, [trans8 + eax]
-			mov[ebx], cl
-			//mov [ebx],ah
-
-
-			sub ebx, edx
-			mov al, [ebx];
-		mov cl, [trans8 + eax]
-			//mov [ebx],cl
-			mov[ebx], ah
-
-			sub ebx, edx
-			mov ah, [ebx];
-		mov cl, [trans8 + eax]
-			mov[ebx], cl
-			//mov [ebx],ah
-
-			sub ebx, edx
-			mov ah, [ebx];
-		mov cl, [trans8 + eax]
-			mov[ebx], cl
-			//mov [ebx],ah
-
-			sub ebx, edx
-			mov ah, [ebx];
-		mov cl, [trans8 + eax]
-			mov[ebx], cl
-			//mov [ebx],ah
-
-			sub ebx, edx
-			mov ah, [ebx];
-		mov cl, [trans8 + eax]
-			mov[ebx], cl
-			//mov [ebx],ah
-			xsd :
-		pop edx
-	};
-};
 int dx_p[11] = { -5,-4,-3, 2,-1, 0, 1, 2, 3, 4, 5 };
 int dy_p[11] = { 1, 3, 2, 0, 2, 4, 2, 3, 1, 2, 3 };
 int sprs;

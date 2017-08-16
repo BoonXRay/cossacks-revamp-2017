@@ -95,30 +95,8 @@ bool ProcessMessages();
 static int cntr;
 static bool InCycle;
 
-int ST_WX;
-int ST_WY;
-int ST_WLX;
-int ST_WLY;
-int ST_SCW;
-
 __declspec( dllexport )
 void SetRLCWindow( int x, int y, int lx, int ly, int slx );
-void StoreWindow()
-{
-	ST_WX = WindX;
-	ST_WY = WindY;
-	ST_WLX = WindX1 - WindX + 1;
-	ST_WLY = WindY1 - WindY + 1;
-	ST_SCW = ScrWidth;
-};
-void RestoreWindow()
-{
-	SetRLCWindow( ST_WX, ST_WY, ST_WLX, ST_WLY, ST_SCW );
-};
-void SetWind( int x, int y, int Lx, int Ly )
-{
-	SetRLCWindow( x, y, Lx, Ly, ScrWidth );
-};
 
 __declspec( dllexport ) void SetRLCWindow( int x, int y, int lx, int ly, int slx )
 {
@@ -139,32 +117,7 @@ __declspec( dllexport ) void SetRLCWindow( int x, int y, int lx, int ly, int slx
 	WindLy = WindY1 - WindY + 1;
 }
 
-//  Setting proper value of the screen pointer
-void SetScreenPtr( void )
-{
-	ScreenPtr = offScreenPtr;
-	RealScreenPtr = ddsd.lpSurface;
-}
-
 void ClearScreen();
-/*
-{
-	if(DDError) return;
-	int sz=ScrWidth*ScrHeight*BytesPerPixel/4;
-	__asm
-	{
-		push	edi
-		push	esi
-		mov		edi,ScreenPtr
-		xor		eax,eax
-		cld
-		mov		ecx,sz
-		rep		stosd
-		pop		esi
-		pop		edi
-	}
-}
-*/
 
 //Showing RLC image with clipping
 void ShowRLC( int x, int y, void* PicPtr )
@@ -179,29 +132,52 @@ void ShowRLC( int x, int y, void* PicPtr )
 		( ( x + PLX <= WindX ) || ( x > WindX1 ) || !PLY )) return;
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 06.08.2017
+		//__asm
 		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
+			//mov		edx, PicPtr
+			//add		edx, 4
+			unsigned int TmpEDX = reinterpret_cast<unsigned int>(PicPtr) + 4;
+			//xor eax, eax
+			//mov		ecx, WindY
+			//sub		ecx, y
+			unsigned int TmpECX = WindY - y;
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			//xor		eax, eax
+			//xor		ebx, ebx
+			unsigned int TmpEAX = 0, TmpEBX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		Loop1xx1 :
+			//mov		al, [edx]
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			//inc		edx
+			TmpEDX++;
+			//or eax, eax
+			//jz		Loop1xx3
+			if (TmpEAX == 0) goto Loop1xx3;
+		Loop1xx2 : 
+			//mov		bl, [edx + 1]
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpEDX+1);
+			//add		edx, ebx
+			TmpEDX += TmpEBX;
+			//add		edx, 2
+			TmpEDX += 2;
+			//dec		eax
+			TmpEAX--;
+			//jnz		Loop1xx2
+			if (TmpEAX != 0) goto Loop1xx2;
+		Loop1xx3 : 
+			//dec		cx
+			TmpCX--;
+			//jnz		Loop1xx1
+			if (TmpCX != 0) goto Loop1xx1;
+			//sub		edx, PicPtr
+			TmpEDX -= reinterpret_cast<unsigned int>(PicPtr);
+			//sub		edx, 4
+			TmpEDX -= 4;
+			//mov		addofs, edx
+			addofs = TmpEDX;
 		}
 		subline = WindY - y;
 		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
@@ -214,196 +190,345 @@ void ShowRLC( int x, int y, void* PicPtr )
 		if (x < WindX)
 		{
 			int roff = WindX - x;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					xor ebx, ebx
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					mov		bx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		bx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		bx, 0
-					jle		ok1
-					cmp		bx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		bx, cx
-					add		esi, ecx
-					add		edi, ecx
-					dec		dl
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, bx
-					mov		ax, bx
-					xor		bx, bx
-					add		esi, eax
-					add		edi, eax
-					ok1 :
-				mov		eax, ecx
-					shr		ecx, 2
-					//jcxz	Lx11
-					rep		movsd
-					mov		ecx, eax
-					and		ecx, 3
-					//jcxz	Lx21
-					rep		movsb
-					dec		dl
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
+			// BoonXRay 06.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				unsigned int TmpEDI = ScrOfst;
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//cld
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+			ScanLineLoop1 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd1
+				if (PLY == 0) goto ScanLineLoopEnd1;
+				//push	edi
+				PushTmpEDI = TmpEDI;
+				//mov		dl, [esi]
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				//xor		ebx, ebx
+				TmpEBX = 0;
+				//inc		esi
+				TmpESI++;
+				//or	dl, dl
+				//jz		NextLine1
+				if (TmpDL == 0) goto NextLine1;
+				//mov		bx, word ptr roff
+				//TmpBX = *reinterpret_cast<unsigned short *>(roff);
+				TmpBX = roff;
+			BeginLine1 : 
+				//mov		cl, [esi]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				//sub		bx, cx
+				TmpBX -= TmpCX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//mov		cl, [esi + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				//add		esi, 2
+				TmpESI += 2;
+				//clipping left code
+				//cmp		bx, 0
+				//jle		ok1
+				if (static_cast<short>(TmpBX) <= 0) goto ok1;
+				//cmp		bx, cx
+				//jl		hdraw1
+				if (TmpBX < TmpCX) goto hdraw1;
+				//nothing to draw
+				//sub		bx, cx
+				TmpBX -= TmpCX;
+				//add		esi, ecx
+				TmpESI += TmpECX;
+				//add		edi, ecx
+				TmpEDI += TmpECX;
+				//dec		dl
+				TmpDL--;
+				//jnz		BeginLine1
+				if (TmpDL != 0) goto BeginLine1;
+				//pop		edi
+				TmpEDI = PushTmpEDI;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//dec     PLY
+				PLY--;
+				//jmp		ScanLineLoop1
+				goto ScanLineLoop1;
+			hdraw1 :			//draw only small part of line
+				//sub		cx, bx
+				TmpCX -= TmpBX;
+				//mov		ax, bx
+				TmpAX = TmpBX;
+				//xor		bx, bx
+				TmpBX = 0;
+				//add		esi, eax
+				TmpESI += TmpEAX;
+				//add		edi, eax
+				TmpEDI += TmpEAX;
+			ok1 :
+				//mov		eax, ecx
+				TmpEAX = TmpECX;
+				//shr		ecx, 2
+				TmpECX >>= 2;
+				//rep		movsd
+				for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+					*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+				//mov		ecx, eax
+				TmpECX = TmpEAX;
+				//and		ecx, 3
+				TmpECX &= 3;
+				//rep		movsb
+				for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				//dec		dl
+				TmpDL--;
+				//jnz		BeginLine1
+				if (TmpDL != 0) goto BeginLine1;
+			NextLine1 : 
+				//pop		edi
+				TmpEDI = PushTmpEDI;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//dec     PLY
+				PLY--;
+				//jmp		ScanLineLoop1
+				goto ScanLineLoop1;
+			ScanLineLoopEnd1 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else if (x + PLX >= WindX1)
 		{
 			int roff = WindX1 - x + 1;
 			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					inc		esi
-					xor     ebx, ebx
-					or dl, dl
-					jz		NextLine2
-					mov		bx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		bx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		bx, cx
-					jge		ok2
-					//clipping
-					cmp		bx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, bx
-					mov		part, ecx
-					mov		cx, bx
-					mov		eax, ecx
-					shr		ecx, 2
-					//jcxz	Lx11_1
-					rep		movsd
-					mov		ecx, eax
-					and		ecx, 3
-					//jcxz	Lx2
-					rep		movsb
-					add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		dl
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		dl
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : sub		bx, cx
-					mov		eax, ecx
-					shr		ecx, 2
-					//jcxz	Lx11
-					rep		movsd
-					mov		ecx, eax
-					and		ecx, 3
-					//jcxz	Lx22
-					rep		movsb
-					dec		dl
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
+			// BoonXRay 06.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+
+			ScanLineLoop2 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd2
+				//push	edi
+				//mov		dl, [esi]
+				//inc		esi
+				//xor     ebx, ebx
+				//or dl, dl
+				//jz		NextLine2
+				//mov		bx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd2;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpEBX = 0;
+				if (TmpDL == 0) goto NextLine2;
+				TmpBX = roff;
+			BeginLine2 :
+				//mov		cl, [esi]
+				//sub		bx, cx
+				//add		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpBX -= TmpCX;
+				TmpEDI += TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping right code
+				//cmp		bx, cx
+				//jge		ok2
+				if (TmpBX >= TmpCX) goto ok2;
+				//clipping
+				//cmp		bx, 0
+				//jle		ntd2
+				if (static_cast<short>(TmpBX) <= 0) goto ntd2;
+				//partial drawing
+				//sub		cx, bx
+				TmpCX -= TmpBX;
+				//mov		part, ecx
+				part = TmpECX;
+				//mov		cx, bx
+				TmpCX = TmpBX;
+				//mov		eax, ecx
+				//shr		ecx, 2
+				//rep		movsd
+				//mov		ecx, eax
+				//and		ecx, 3
+				//rep		movsb
+				TmpEAX = TmpECX;
+				TmpECX >>= 2;
+				for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+					*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+				TmpECX = TmpEAX;
+				TmpECX &= 3;
+				for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				//add		esi, part
+				TmpESI += part;
+				//jmp		ntd4
+				goto ntd4;
+			ntd2 :			//scanning to the next line
+				//add		esi, ecx
+				TmpESI += TmpECX;
+			ntd4 : 
+				//dec		dl
+				TmpDL--;
+				//jz		NextLine2
+				if (TmpDL == 0) goto NextLine2;
+			ntd22 : 
+				//mov		cl, [esi + 1]
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				//add		esi, 2
+				//add		esi, ecx
+				TmpESI += 2 + TmpECX;
+				//dec		dl
+				TmpDL--;
+				//jnz		ntd22
+				if (TmpDL != 0) goto ntd22;
+				//jmp		NextLine2
+				goto NextLine2;
+			ok2 : 
+				//sub		bx, cx
+				//mov		eax, ecx
+				//shr		ecx, 2
+				//rep		movsd
+				//mov		ecx, eax
+				//and		ecx, 3
+				//rep		movsb
+
+				TmpBX -= TmpCX;
+				TmpEAX = TmpECX;
+				TmpECX >>= 2;
+				for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+					*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+				TmpECX = TmpEAX;
+				TmpECX &= 3;
+				for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+					*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				//dec		dl
+				TmpDL--;
+				//jnz		BeginLine2
+				if (TmpDL != 0) goto BeginLine2;
+			NextLine2 : 
+				//pop		edi
+				TmpEDI = PushTmpEDI;
+				//add		edi, ScrWidth
+				TmpEDI += ScrWidth;
+				//dec     PLY
+				PLY--;
+				//jmp		ScanLineLoop2
+				goto ScanLineLoop2;
+			ScanLineLoopEnd2 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else
-			__asm
+			// BoonXRay 06.08.2017
+		//__asm
 		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		bl, [esi]
-				inc		esi
-				or bl, bl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				add		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				mov		eax, ecx
-				shr		ecx, 2
-				jcxz	Lx1
-				rep		movsd
-				Lx1 : mov		ecx, eax
-				and		ecx, 3
-				//jcxz	Lx2
-				rep		movsb
-				//			xor		eax,eax
-				//rrr:		lodsb
-				//			mov		al,[precomp+eax]
-				//	        stosb
-				//			loop	rrr
-				//			rep		movsb
-				dec		ebx
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
+			//push	esi
+			//push	edi
+			//mov		edi, ScrOfst
+			//mov		esi, PicPtr
+			//add		esi, addofs
+			//xor		ecx, ecx
+			//xor		ebx, ebx
+			//cld
+			unsigned int TmpEDI = ScrOfst;
+			unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int PushTmpEDI;
+		ScanLineLoop :
+			//cmp		PLY, 0
+			//je		ScanLineLoopEnd
+			//push	edi
+			//mov		bl, [esi]
+			//inc		esi
+			//or bl, bl
+			//jz		NextLine
+			if (PLY == 0) goto ScanLineLoopEnd;
+			PushTmpEDI = TmpEDI;
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			if (TmpBL == 0) goto NextLine;
+		BeginLine : 
+			//mov		cl, [esi]
+			//add		edi, ecx
+			//mov		cl, [esi + 1]
+			//add		esi, 2
+			//mov		eax, ecx
+			//shr		ecx, 2
+			//jcxz	Lx1
+			//rep		movsd
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEDI += TmpECX;
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+			TmpESI += 2;
+			TmpEAX = TmpECX;
+			TmpECX >>= 2;
+			if (TmpCX == 0) goto Lx1;
+			for (; TmpECX != 0; TmpECX--, TmpESI += 4 /*sizeof(int)*/, TmpEDI += 4 /*sizeof(int)*/)
+				*reinterpret_cast<unsigned int *>(TmpEDI) = *reinterpret_cast<unsigned int *>(TmpESI);
+		Lx1 : 
+			//mov		ecx, eax
+			//and		ecx, 3
+			//rep		movsb
+			//dec		ebx
+			//jnz		BeginLine
+			TmpECX = TmpEAX;
+			TmpECX &= 3;
+			for (; TmpECX != 0; TmpECX--, TmpESI++, TmpEDI++)
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEBX--;
+			if (TmpEBX != 0) goto BeginLine;
+		NextLine : 
+			//pop		edi
+			TmpEDI = PushTmpEDI;
+			//add		edi, ScrWidth
+			TmpEDI += ScrWidth;
+			//dec     PLY
+			PLY--;
+			//jmp		ScanLineLoop
+			goto ScanLineLoop;
+		ScanLineLoopEnd :
+			//pop		edi
+			//pop		esi
+			;
 		}
 	}
 }
@@ -421,29 +546,52 @@ void ShowRLCi( int x, int y, void* PicPtr )
 		( ( x < WindX ) || ( x - PLX + 1 >= WindX1 ) || !PLY )) return;
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 06.08.2017
+		//__asm
 		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
+			//mov		edx, PicPtr
+			//add		edx, 4
+			unsigned int TmpEDX = reinterpret_cast<unsigned int>(PicPtr) + 4;
+			//xor eax, eax
+			//mov		ecx, WindY
+			//sub		ecx, y
+			//xor		eax, eax
+			//xor		ebx, ebx
+			unsigned int TmpECX = WindY - y;
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int TmpEAX = 0, TmpEBX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		Loop1xx1 : 
+			//mov		al, [edx]
+			//inc		edx
+			//or eax, eax
+			//jz		Loop1xx3
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			if (TmpEAX == 0) goto Loop1xx3;
+		Loop1xx2 : 
+			//mov		bl, [edx + 1]
+			//add		edx, ebx
+			//add		edx, 2
+			//dec		eax
+			//jnz		Loop1xx2
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			TmpEDX += TmpEBX;
+			TmpEDX += 2;
+			TmpEAX--;
+			if (TmpEAX != 0) goto Loop1xx2;
+		Loop1xx3 : 
+			//dec		cx
+			//jnz		Loop1xx1
+			//sub		edx, PicPtr
+			//sub		edx, 4
+			//mov		addofs, edx
+			TmpCX--;
+			if (TmpCX != 0) goto Loop1xx1;
+			TmpEDX -= reinterpret_cast<unsigned int>(PicPtr);
+			TmpEDX -= 4;
+			addofs = TmpEDX;
 		}
 		subline = WindY - y;
 		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
@@ -456,178 +604,339 @@ void ShowRLCi( int x, int y, void* PicPtr )
 		if (x > WindX1)
 		{
 			int roff = x - WindX1;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor     ebx, ebx
-					mov		bx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		bx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		bx, 0
-					jle		ok1_1
-					cmp		bx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		bx, cx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		dl
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, bx
-					mov		ax, bx
-					xor		bx, bx
-					add		esi, eax
-					sub		edi, eax
-					ok1_1 : jcxz    Lx21
-					ok1 :
-				movsb
-					sub		edi, 2
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		dl
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
+			// BoonXRay 06.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+			ScanLineLoop1 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd1
+				//push	edi
+				//mov		dl, [esi]
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine1
+				//xor     ebx, ebx
+				//mov		bx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd1;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine1;
+				TmpEBX = 0;
+				TmpBX = roff;
+			BeginLine1 : 
+				//mov		cl, [esi]
+				//sub		bx, cx
+				//sub		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpBX -= TmpCX;
+				TmpEDI -= TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping left code
+				//cmp		bx, 0
+				//jle		ok1_1
+				//cmp		bx, cx
+				//jl		hdraw1
+				if (static_cast<short>(TmpBX) <= 0) goto ok1_1;
+				if (TmpBX < TmpCX) goto hdraw1;
+				//nothing to draw
+				//sub		bx, cx
+				//add		esi, ecx
+				//sub		edi, ecx
+				//dec		dl
+				//jnz		BeginLine1
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpBX -= TmpCX;
+				TmpESI += TmpECX;
+				TmpEDI -= TmpECX;
+				TmpDL--;
+				if (TmpDL != 0) goto BeginLine1;
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			hdraw1 :			//draw only small part of line
+				//sub		cx, bx
+				//mov		ax, bx
+				//xor		bx, bx
+				//add		esi, eax
+				//sub		edi, eax
+				TmpCX -= TmpBX;
+				TmpAX = TmpBX;
+				TmpBX = 0;
+				TmpESI += TmpEAX;
+				TmpEDI -= TmpEAX;
+			ok1_1 : 
+				//jcxz    Lx21
+				if (TmpCX == 0) goto Lx21;
+			ok1 :
+				//movsb
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpEDI++;
+				//sub		edi, 2
+				TmpEDI -= 2;
+				//dec		cl
+				TmpCL--;
+				//jnz		ok1
+				if (TmpCL != 0) goto ok1;
+			Lx21 : 
+				//dec		dl
+				TmpDL--;
+				//jnz		BeginLine1
+				if (TmpDL != 0) goto BeginLine1;
+			NextLine1 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			ScanLineLoopEnd1 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else if (x - PLX + 1 < WindX)
 		{
 			int roff = x - WindX + 1;
 			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		ebx, ebx
-					mov		bx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		bx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		bx, cx
-					jge		ok2
-					//clipping
-					cmp		bx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, bx
-					mov		part, ecx
-					mov		cx, bx
-					jcxz    lxsd1_1
-					lxsd1 : movsb
-					sub		edi, 2
-					dec		cl
-					jnz		lxsd1
-					lxsd1_1 : add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		dl
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		dl
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : sub		bx, cx
-					jcxz    Lx22
-					lkfr1 : movsb
-					sub		edi, 2
-					dec		cl
-					jnz		lkfr1
-					Lx22 : dec		dl
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
+			// BoonXRay 06.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+			ScanLineLoop2 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd2
+				//push	edi
+				//mov		dl, [esi]
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine2
+				//xor		ebx, ebx
+				//mov		bx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd2;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine2;
+				TmpEBX = 0;
+				TmpBX = roff;
+			BeginLine2 : 
+				//mov		cl, [esi]
+				//sub		bx, cx
+				//sub		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpBX -= TmpCX;
+				TmpEDI -= TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping right code
+				//cmp		bx, cx
+				//jge		ok2
+				if (TmpBX >= TmpCX) goto ok2;
+				//clipping
+				//cmp		bx, 0
+				//jle		ntd2
+				if (static_cast<short>(TmpBX) <= 0) goto ntd2;
+				//partial drawing
+				//sub		cx, bx
+				//mov		part, ecx
+				//mov		cx, bx
+				//jcxz    lxsd1_1
+				TmpCX -= TmpBX;
+				part = TmpECX;
+				TmpCX = TmpBX;
+				if (TmpCX == 0) goto lxsd1_1;
+			lxsd1 : 
+				//movsb
+				//sub		edi, 2
+				//dec		cl
+				//jnz		lxsd1
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpEDI++;
+				TmpEDI -= 2;
+				TmpCL--;
+				if (TmpCL != 0) goto lxsd1;
+			lxsd1_1 : 
+				//add		esi, part
+				//jmp		ntd4
+				TmpESI += part;
+				goto ntd4;
+			ntd2 :			//scanning to the next line
+				//add		esi, ecx
+				TmpESI += TmpECX;
+			ntd4 : 
+				//dec		dl
+				//jz		NextLine2
+				TmpDL--;
+				if (TmpDL == 0) goto NextLine2;
+			ntd22 : 
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				//add		esi, ecx
+				//dec		dl
+				//jnz		ntd22
+				//jmp		NextLine2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2 + TmpECX;
+				TmpDL--;
+				if (TmpDL != 0) goto ntd22;
+				goto NextLine2;
+			ok2 : 
+				//sub		bx, cx
+				//jcxz    Lx22
+				TmpBX -= TmpCX;
+				if (TmpCX == 0) goto Lx22;
+			lkfr1 : 
+				//movsb
+				//sub		edi, 2
+				//dec		cl
+				//jnz		lkfr1
+				*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpEDI++;
+				TmpEDI -= 2;
+				TmpCL--;
+				if (TmpCL != 0) goto lkfr1;
+			Lx22 : 
+				//dec		dl
+				//jnz		BeginLine2
+				TmpDL--;
+				if (TmpDL != 0) goto BeginLine2;
+			NextLine2 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop2
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop2;
+			ScanLineLoopEnd2 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else
-			__asm
+			// BoonXRay 06.08.2017
+		//__asm
 		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		bl, [esi]
-				inc		esi
-				or bl, bl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				sub		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				jcxz	Lx2
-				ghte : movsb
-				sub		edi, 2
-				dec		cl
-				jnz		ghte
-				Lx2 : dec		ebx
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
+			//push	esi
+			//push	edi
+			//mov		edi, ScrOfst
+			//mov		esi, PicPtr
+			//add		esi, addofs
+			//xor		ecx, ecx
+			//xor		ebx, ebx
+			//cld
+			unsigned int TmpEDI = ScrOfst;
+			unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int PushTmpEDI;
+		ScanLineLoop :
+			//cmp		PLY, 0
+			//je		ScanLineLoopEnd
+			//push	edi
+			//mov		bl, [esi]
+			//inc		esi
+			//or bl, bl
+			//jz		NextLine
+			if (PLY == 0) goto ScanLineLoopEnd;
+			PushTmpEDI = TmpEDI;
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			if (TmpBL == 0) goto NextLine;
+		BeginLine : 
+			//mov		cl, [esi]
+			//sub		edi, ecx
+			//mov		cl, [esi + 1]
+			//add		esi, 2
+			//jcxz	Lx2
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEDI -= TmpECX;
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+			TmpESI += 2;			
+			if (TmpCX == 0) goto Lx2;
+		ghte : 
+			//movsb
+			//sub		edi, 2
+			//dec		cl
+			//jnz		ghte
+			*reinterpret_cast<unsigned char *>(TmpEDI) = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpEDI++;
+			TmpEDI -= 2;
+			TmpCL--;
+			if (TmpCL != 0) goto ghte;
+		Lx2 : 
+			//dec		ebx
+			//jnz		BeginLine
+			TmpEBX--;
+			if (TmpEBX != 0) goto BeginLine;
+		NextLine : 
+			//pop		edi
+			//add		edi, ScrWidth
+			//dec     PLY
+			//jmp		ScanLineLoop
+			TmpEDI = PushTmpEDI;
+			TmpEDI += ScrWidth;
+			PLY--;
+			goto ScanLineLoop;
+		ScanLineLoopEnd :
+			//pop		edi
+			//pop		esi
+			;
 		}
 	}
 }
@@ -645,29 +954,52 @@ void ShowRLCpal( int x, int y, void* PicPtr, byte* pal )
 		( ( x + PLX <= WindX ) || ( x > WindX1 ) || !PLY )) return;
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 06.08.2017
+		//__asm
 		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
+			//mov		edx, PicPtr
+			//add		edx, 4
+			//xor eax, eax
+			//mov		ecx, WindY
+			//sub		ecx, y
+			//xor		eax, eax
+			//xor		ebx, ebx
+			unsigned int TmpEDX = reinterpret_cast<unsigned int>(PicPtr) + 4;
+			unsigned int TmpECX = WindY - y;
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int TmpEAX = 0, TmpEBX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		Loop1xx1 : 
+			//mov		al, [edx]
+			//inc		edx
+			//or eax, eax
+			//jz		Loop1xx3
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			if (TmpEAX == 0) goto Loop1xx3;
+		Loop1xx2 : 
+			//mov		bl, [edx + 1]
+			//add		edx, ebx
+			//add		edx, 2
+			//dec		eax
+			//jnz		Loop1xx2
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			TmpEDX += TmpEBX;
+			TmpEDX += 2;
+			TmpEAX--;
+			if (TmpEAX != 0) goto Loop1xx2;
+		Loop1xx3 : 
+			//dec		cx
+			//jnz		Loop1xx1
+			//sub		edx, PicPtr
+			//sub		edx, 4
+			//mov		addofs, edx
+			TmpCX--;
+			if (TmpCX != 0) goto Loop1xx1;
+			TmpEDX -= reinterpret_cast<unsigned int>(PicPtr);
+			TmpEDX -= 4;
+			addofs = TmpEDX;
 		}
 		subline = WindY - y;
 		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
@@ -681,190 +1013,371 @@ void ShowRLCpal( int x, int y, void* PicPtr, byte* pal )
 		if (x < WindX)
 		{
 			int roff = WindX - x;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor		edx, edx
-					xor     ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		dx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		dx, 0
-					jle		ok1_1
-					cmp		dx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		dx, cx
-					add		esi, ecx
-					add		edi, ecx
-					dec		Acm
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, dx
-					mov		ax, dx
-					xor		dx, dx
-					add		esi, eax
-					add		edi, eax
-					ok1_1 : jcxz    Lx21
-					ok1 :
-				lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		Acm
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
+			// BoonXRay 06.08.2017
+			//__asm
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop1 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd1
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine1
+				//xor		edx, edx
+				//xor     ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd1;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine1;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine1 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//add		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI += TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping left code
+				//cmp		dx, 0
+				//jle		ok1_1
+				//cmp		dx, cx
+				//jl		hdraw1
+				if (static_cast<short>(TmpDX) <= 0) goto ok1_1;
+				if (TmpDX < TmpCX) goto hdraw1;
+				//nothing to draw
+				//sub		dx, cx
+				//add		esi, ecx
+				//add		edi, ecx
+				//dec		Acm
+				//jnz		BeginLine1
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpDX -= TmpCX;
+				TmpESI += TmpECX;
+				TmpEDI += TmpECX;
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			hdraw1 :			//draw only small part of line
+				//sub		cx, dx
+				//mov		ax, dx
+				//xor		dx, dx
+				//add		esi, eax
+				//add		edi, eax
+				TmpCX -= TmpDX;
+				TmpAX = TmpDX;
+				TmpDX = 0;
+				TmpESI += TmpEAX;
+				TmpEDI += TmpEAX;
+			ok1_1 : 
+				//jcxz    Lx21
+				if (TmpCX == 0) goto Lx21;
+			ok1 :
+				//lodsb
+				//mov		al, [ebx + eax]
+				//stosb
+				//dec		cl
+				//jnz		ok1
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				TmpCL--;
+				if (TmpCL != 0) goto ok1;
+			Lx21 : 
+				//dec		Acm
+				//jnz		BeginLine1
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+			NextLine1 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			ScanLineLoopEnd1 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else if (x + PLX >= WindX1)
 		{
 			int roff = WindX1 - x + 1;
 			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		edx, edx
-					xor     ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		dx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		dx, cx
-					jge		ok2
-					//clipping
-					cmp		dx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, dx
-					mov		part, ecx
-					mov		cx, dx
-					jcxz	kkj1_2
-					kkj1 : lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		kkj1
-					kkj1_2 : add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		Acm
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		Acm
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : sub		dx, cx
-					jcxz	Lx22
-					kkj2 : lodsb
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		kkj2
-					Lx22 : dec		Acm
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
+			// BoonXRay 06.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop2 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd2
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine2
+				//xor		edx, edx
+				//xor     ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd2;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine2;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine2 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//add		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI += TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping right code
+				//cmp		dx, cx
+				//jge		ok2
+				if (TmpDX >= TmpCX) goto ok2;
+				//clipping
+				//cmp		dx, 0
+				//jle		ntd2
+				if (static_cast<short>(TmpDX) <= 0) goto ntd2;
+				//partial drawing
+				//sub		cx, dx
+				//mov		part, ecx
+				//mov		cx, dx
+				//jcxz	kkj1_2
+				TmpCX -= TmpDX;
+				part = TmpECX;
+				TmpCX = TmpDX;
+				if (TmpCX == 0) goto kkj1_2;
+			kkj1 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//stosb
+				//dec		cl
+				//jnz		kkj1
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				TmpCL--;
+				if (TmpCL != 0) goto kkj1;
+			kkj1_2 : 
+				//add		esi, part
+				//jmp		ntd4
+				TmpESI += part;
+				goto ntd4;
+			ntd2 :			//scanning to the next line
+				//add		esi, ecx
+				TmpESI += TmpECX;
+			ntd4 : 
+				//dec		Acm
+				//jz		NextLine2
+				Acm--;
+				if (Acm != 0) goto NextLine2;
+			ntd22 : 
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				//add		esi, ecx
+				//dec		Acm
+				//jnz		ntd22
+				//jmp		NextLine2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2 + TmpECX;
+				Acm--;
+				if (Acm != 0) goto ntd22;
+				goto NextLine2;
+			ok2 : 
+				//sub		dx, cx
+				//jcxz	Lx22
+				TmpDX -= TmpCX;
+				if (TmpCX == 0) goto Lx22;
+			kkj2 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//stosb
+				//dec		cl
+				//jnz		kkj2
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				TmpCL--;
+				if (TmpCL != 0) goto kkj2;
+			Lx22 : 
+				//dec		Acm
+				//jnz		BeginLine2
+				Acm--;
+				if (Acm != 0) goto BeginLine2;
+				
+			NextLine2 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop2
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop2;
+			ScanLineLoopEnd2 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else
-			__asm
+			// BoonXRay 06.08.2017
+		//__asm
 		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			xor		eax, eax
-			mov		ebx, pal
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		dl, [esi]
-				inc		esi
-				or dl, dl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				add		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				jcxz	Lx2
-				hgaw : lodsb
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		hgaw
-				Lx2 : dec		dl
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
+			//push	esi
+			//push	edi
+			//mov		edi, ScrOfst
+			//mov		esi, PicPtr
+			//add		esi, addofs
+			//xor		ecx, ecx
+			//xor		ebx, ebx
+			//xor		eax, eax
+			//mov		ebx, pal
+			//cld
+			unsigned int TmpEDI = ScrOfst;
+			unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+			unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+			unsigned int PushTmpEDI;
+			TmpEBX = reinterpret_cast<unsigned int>(pal);
+		ScanLineLoop :
+			//cmp		PLY, 0
+			//je		ScanLineLoopEnd
+			//push	edi
+			//mov		dl, [esi]
+			//inc		esi
+			//or dl, dl
+			//jz		NextLine
+			if (PLY == 0) goto ScanLineLoopEnd;
+			PushTmpEDI = TmpEDI;
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			if (TmpDL == 0) goto NextLine;
+		BeginLine : 
+			//mov		cl, [esi]
+			//add		edi, ecx
+			//mov		cl, [esi + 1]
+			//add		esi, 2
+			//jcxz	Lx2
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEDI += TmpECX;
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+			TmpESI += 2;
+			if (TmpCX == 0) goto Lx2;
+		hgaw : 
+			//lodsb
+			//mov		al, [ebx + eax]
+			//stosb
+			//dec		cl
+			//jnz		hgaw
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			TmpCL--;
+			if (TmpCL != 0) goto hgaw;
+		Lx2 : 
+			//dec		dl
+			//jnz		BeginLine
+			TmpDL--;
+			if (TmpDL != 0) goto BeginLine;
+		NextLine : 
+			//pop		edi
+			//add		edi, ScrWidth
+			//dec     PLY
+			//jmp		ScanLineLoop
+			TmpEDI = PushTmpEDI;
+			TmpEDI += ScrWidth;
+			PLY--;
+			goto ScanLineLoop;
+		ScanLineLoopEnd :
+			//pop		edi
+			//pop		esi
+			;
 		}
 	}
 }
@@ -883,30 +1396,54 @@ void ShowRLCipal( int x, int y, void* PicPtr, byte* pal )
 		( ( x < WindX ) || ( x - PLX + 1 >= WindX1 ) || !PLY )) return;
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 09.08.2017
+		//__asm
 		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
+			//mov		edx, PicPtr
+			//add		edx, 4
+			//xor eax, eax
+			//mov		ecx, WindY
+			//sub		ecx, y
+			//xor		eax, eax
+			//xor		ebx, ebx
+			unsigned int TmpEDX = reinterpret_cast<unsigned int>(PicPtr) + 4;
+			unsigned int TmpECX = WindY - y;
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int TmpEAX = 0, TmpEBX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		Loop1xx1 : 
+			//mov		al, [edx]
+			//inc		edx
+			//or eax, eax
+			//jz		Loop1xx3
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			if (TmpEAX == 0) goto Loop1xx3;
+		Loop1xx2 : 
+			//mov		bl, [edx + 1]
+			//add		edx, ebx
+			//add		edx, 2
+			//dec		eax
+			//jnz		Loop1xx2
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			TmpEDX += TmpEBX;
+			TmpEDX += 2;
+			TmpEAX--;
+			if (TmpEAX != 0) goto Loop1xx2;
+		Loop1xx3 : 
+			//dec		cx
+			//jnz		Loop1xx1
+			//sub		edx, PicPtr
+			//sub		edx, 4
+			//mov		addofs, edx
+			TmpCX--;
+			if (TmpCX != 0) goto Loop1xx1;
+			TmpEDX -= reinterpret_cast<unsigned int>(PicPtr);
+			TmpEDX -= 4;
+			addofs = TmpEDX;
 		}
+
 		subline = WindY - y;
 		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
 	}
@@ -919,684 +1456,378 @@ void ShowRLCipal( int x, int y, void* PicPtr, byte* pal )
 		if (x > WindX1)
 		{
 			int roff = x - WindX1;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor     edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		dx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		dx, 0
-					jle		ok1_1
-					cmp		dx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		dx, cx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		Acm
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, dx
-					mov		ax, dx
-					xor		edx, edx
-					add		esi, eax
-					sub		edi, eax
-					ok1_1 : jcxz	Lx21
-					ok1 : lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		Acm
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
+			// BoonXRay 09.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop1 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd1
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine1
+				//xor     edx, edx
+				//xor		ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd1;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine1;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine1 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//sub		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI -= TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping left code
+				//cmp		dx, 0
+				//jle		ok1_1
+				//cmp		dx, cx
+				//jl		hdraw1
+				if (static_cast<short>(TmpDX) <= 0) goto ok1_1;
+				if (TmpDX < TmpCX) goto hdraw1;
+				//nothing to draw
+				//sub		dx, cx
+				//add		esi, ecx
+				//sub		edi, ecx
+				//dec		Acm
+				//jnz		BeginLine1
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpDX -= TmpCX;
+				TmpESI += TmpECX;
+				TmpEDI -= TmpECX;
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			hdraw1 :			//draw only small part of line
+				//sub		cx, dx
+				//mov		ax, dx
+				//xor		edx, edx
+				//add		esi, eax
+				//sub		edi, eax
+				TmpCX -= TmpDX;
+				TmpAX = TmpDX;
+				TmpEDX = 0;
+				TmpESI += TmpEAX;
+				TmpEDI -= TmpEAX;
+			ok1_1 : 
+				//jcxz	Lx21
+				if (TmpCX == 0) goto Lx21;
+			ok1 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				//jnz		ok1
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				if (TmpCL != 0) goto ok1;
+			Lx21 : 
+				//dec		Acm
+				//jnz		BeginLine1
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+			NextLine1 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			ScanLineLoopEnd1 :
+				//pop		edi
+				//pop		esi
+				;
 			};
+
 		}
 		else if (x - PLX + 1 < WindX)
 		{
 			int roff = x - WindX + 1;
 			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		dx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		dx, cx
-					jge		ok2
-					//clipping
-					cmp		dx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, dx
-					mov		part, ecx
-					mov		cx, dx
-					jcxz    lxsd1_1
-					lxsd1 : lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cx
-					jnz		lxsd1
-					lxsd1_1 : add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		Acm
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		Acm
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : sub		dx, cx
-					jcxz	Lx22
-					lkfr1 : lodsb
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		lkfr1
-					Lx22 : dec		Acm
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
+			// BoonXRay 09.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop2 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd2
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine2
+				//xor		edx, edx
+				//xor		ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd2;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine2;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine2 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//sub		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI -= TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping right code
+				//cmp		dx, cx
+				//jge		ok2
+				if (TmpDX >= TmpCX) goto ok2;
+				//clipping
+				//cmp		dx, 0
+				//jle		ntd2
+				if (static_cast<short>(TmpDX) <= 0) goto ntd2;
+				//partial drawing
+				//sub		cx, dx
+				//mov		part, ecx
+				//mov		cx, dx
+				//jcxz    lxsd1_1
+				TmpCX -= TmpDX;
+				part = TmpECX;
+				TmpCX = TmpDX;
+				if (TmpCX == 0) goto lxsd1_1;
+			lxsd1 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cx
+				//jnz		lxsd1
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				if (TmpCL != 0) goto lxsd1;
+			lxsd1_1 : 
+				//add		esi, part
+				//jmp		ntd4
+				TmpESI += part;
+				goto ntd4;
+			ntd2 :			//scanning to the next line
+				//add		esi, ecx
+				TmpESI += TmpECX;
+			ntd4 : 
+				//dec		Acm
+				//jz		NextLine2
+				Acm--;
+				if (Acm != 0) goto NextLine2;
+			ntd22 : 
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				//add		esi, ecx
+				//dec		Acm
+				//jnz		ntd22
+				//jmp		NextLine2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2 + TmpECX;
+				Acm--;
+				if (Acm != 0) goto ntd22;
+				goto NextLine2;
+			ok2 : 
+				//sub		dx, cx
+				//jcxz	Lx22
+				TmpDX -= TmpCX;
+				if (TmpCX == 0) goto Lx22;
+			lkfr1 : 
+				//lodsb
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				//jnz		lkfr1
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				if (TmpCL != 0) goto lkfr1;
+			Lx22 : 
+				//dec		Acm
+				//jnz		BeginLine2
+				Acm--;
+				if (Acm != 0) goto BeginLine2;
+			NextLine2 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop2
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop2;
+			ScanLineLoopEnd2 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else
-			__asm
+			// BoonXRay 09.08.2017
+		//__asm
 		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			xor		eax, eax
-			mov		ebx, pal
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		dl, [esi]
-				inc		esi
-				or dl, dl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				sub		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				jcxz	Lx2
-				ghte : lodsb
-				mov		al, [eax + ebx]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		ghte
-				Lx2 : dec		dl
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
+			//push	esi
+			//push	edi
+			//mov		edi, ScrOfst
+			//mov		esi, PicPtr
+			//add		esi, addofs
+			//xor		ecx, ecx
+			//xor		ebx, ebx
+			//xor		eax, eax
+			//mov		ebx, pal
+			//cld
+			unsigned int TmpEDI = ScrOfst;
+			unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+			unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+			unsigned int PushTmpEDI;
+			TmpEBX = reinterpret_cast<unsigned int>(pal);
+		ScanLineLoop :
+			//cmp		PLY, 0
+			//je		ScanLineLoopEnd
+			//push	edi
+			//mov		dl, [esi]
+			//inc		esi
+			//or dl, dl
+			//jz		NextLine
+			if (PLY == 0) goto ScanLineLoopEnd;
+			PushTmpEDI = TmpEDI;
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			if (TmpDL == 0) goto NextLine;
+		BeginLine : 
+			//mov		cl, [esi]
+			//sub		edi, ecx
+			//mov		cl, [esi + 1]
+			//add		esi, 2
+			//jcxz	Lx2
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEDI -= TmpECX;
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+			TmpESI += 2;
+			if (TmpCX == 0) goto Lx2;
+		ghte : 
+			//lodsb
+			//mov		al, [eax + ebx]
+			//mov[edi], al
+			//dec		edi
+			//dec		cl
+			//jnz		ghte
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI--;
+			TmpCL--;
+			if (TmpCL != 0) goto ghte;
+		Lx2 : 
+			//dec		dl
+			//jnz		BeginLine
+			TmpDL--;
+			if (TmpDL != 0) goto BeginLine;
+		NextLine : 
+			//pop		edi
+			//add		edi, ScrWidth
+			//dec     PLY
+			//jmp		ScanLineLoop
+			TmpEDI = PushTmpEDI;
+			TmpEDI += ScrWidth;
+			PLY--;
+			goto ScanLineLoop;
+		ScanLineLoopEnd :
+			//pop		edi
+			//pop		esi
+			;
 		}
 	}
 }
 //End of inverted RLC with clipping & encoding
-
-//End of RLC with clipping & with palette->fon
-void ShowRLCfonpal( int x, int y, void* PicPtr, byte* pal )
-{
-	//for(int i=0;i<256;i++) precomp[i]=i;
-	if (!PicPtr)return;
-	int ScrOfst = int( ScreenPtr ) + y*ScrWidth + x;
-	int addofs = 0;
-	int subline = 0;
-	int PLY = ( lpRLCHeader( PicPtr )->SizeY ) & 65535;
-	int PLX = ( lpRLCHeader( PicPtr )->SizeX ) & 65535;
-	if (( y + PLY - 1 < WindY ) | ( y > WindY1 ) ||
-		( ( x + PLX <= WindX ) || ( x > WindX1 ) || !PLY )) return;
-	if (y < WindY)
-	{
-		__asm
-		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
-		}
-		subline = WindY - y;
-		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
-	}
-	if (WindY1 < y + PLY - 1) subline += y + PLY - 1 - WindY1;
-	addofs += 4;
-	byte Acm;
-	PLY -= subline;
-	if (PLY > 0)
-	{
-		if (x < WindX)
-		{
-			int roff = WindX - x;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		dx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		dx, 0
-					jle		okk1
-					cmp		dx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		dx, cx
-					add		esi, ecx
-					add		edi, ecx
-					dec		Acm
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, dx
-					mov		ax, dx
-					xor		edx, edx
-					add		esi, eax
-					add		edi, eax
-					okk1 : jcxz	Lx21
-					add		esi, ecx
-					ok1 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		Acm
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
-			};
-		}
-		else if (x + PLX >= WindX1)
-		{
-			int roff = WindX1 - x + 1;
-			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		dx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		dx, cx
-					jge		ok2
-					//clipping
-					cmp		dx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, dx
-					mov		part, ecx
-					mov		cx, dx
-					add		esi, ecx
-					jcxz    kkj1_1
-					kkj1 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		kkj1
-					kkj1_1 : add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		Acm
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		Acm
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : sub		dx, cx
-					add		esi, ecx
-					jcxz    Lx22
-					kkj3 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		kkj3
-					Lx22 : dec		Acm
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
-			};
-		}
-		else
-			__asm
-		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			xor		eax, eax
-			mov		ebx, pal
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		dl, [esi]
-				inc		esi
-				or dl, dl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				add		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				add		esi, ecx
-				jcxz    Lx2
-				hgaw : mov		al, [edi]
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		hgaw
-				Lx2 : dec		dl
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
-		}
-	}
-}
-//End of RLC with clipping & encoding
-//Showing inverse RLC image with clipping & encodint
-void ShowRLCifonpal( int x, int y, void* PicPtr, byte* pal )
-{
-	//for(int i=0;i<256;i++) precomp[i]=i;
-	int ScrOfst = int( ScreenPtr ) + y*ScrWidth + x;
-	int addofs = 0;
-	int subline = 0;
-	int PLY = ( lpRLCHeader( PicPtr )->SizeY ) & 65535;
-	int PLX = ( lpRLCHeader( PicPtr )->SizeX ) & 65535;
-	if (( y + PLY - 1 < WindY ) | ( y > WindY1 ) ||
-		( ( x < WindX ) || ( x - PLX + 1 >= WindX1 ) || !PLY )) return;
-	if (y < WindY)
-	{
-		__asm
-		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
-		}
-		subline = WindY - y;
-		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
-	}
-	if (WindY1 < y + PLY - 1) subline += y + PLY - 1 - WindY1;
-	addofs += 4;
-	byte Acm;
-	PLY -= subline;
-	if (PLY > 0)
-	{
-		if (x > WindX1)
-		{
-			int roff = x - WindX1;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		dx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		dx, 0
-					jle		okk1
-					cmp		dx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		dx, cx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		Acm
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, dx
-					mov		ax, dx
-					xor		edx, edx
-					add		esi, eax
-					sub		edi, eax
-					okk1 : jcxz	Lx21
-					add		esi, ecx
-					//or		cl,cl
-					//jz		Lx21
-					ok1 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		Acm
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
-			};
-		}
-		else if (x - PLX + 1 < WindX)
-		{
-			int roff = x - WindX + 1;
-			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		dx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		dx, cx
-					jge		ok2
-					//clipping
-					cmp		dx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, dx
-					mov		part, ecx
-					mov		cx, dx
-					add		esi, ecx
-					lxsd1 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		lxsd1
-					add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		Acm
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		Acm
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : jcxz	Lx22
-					sub		dx, cx
-					add		esi, ecx
-					lkfr1 : mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		lkfr1
-					Lx22 : dec		Acm
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
-			};
-		}
-		else
-			__asm
-		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			xor		eax, eax
-			mov		ebx, pal
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		dl, [esi]
-				inc		esi
-				or dl, dl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				sub		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				add		esi, ecx
-				jcxz	Lx2
-				ghte : mov		al, [edi]
-				mov		al, [eax + ebx]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		ghte
-				Lx2 : dec		dl
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
-		}
-	}
-}
-//End of inverted RLC with clipping & encoding->fon
 
 //End of RLC with clipping & with palette(half-transparent fog)
 void ShowRLChtpal( int x, int y, void* PicPtr, byte* pal )
@@ -1611,29 +1842,52 @@ void ShowRLChtpal( int x, int y, void* PicPtr, byte* pal )
 		( ( x + PLX <= WindX ) || ( x > WindX1 ) || !PLY )) return;
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 10.08.2017
+		//__asm
 		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
+			//mov		edx, PicPtr
+			//add		edx, 4
+			//xor eax, eax
+			//mov		ecx, WindY
+			//sub		ecx, y
+			//xor		eax, eax
+			//xor		ebx, ebx
+			unsigned int TmpEDX = reinterpret_cast<unsigned int>(PicPtr) + 4;
+			unsigned int TmpECX = WindY - y;
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int TmpEAX = 0, TmpEBX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		Loop1xx1 : 
+			//mov		al, [edx]
+			//inc		edx
+			//or eax, eax
+			//jz		Loop1xx3
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			if (TmpEAX == 0) goto Loop1xx3;
+		Loop1xx2 : 
+			//mov		bl, [edx + 1]
+			//add		edx, ebx
+			//add		edx, 2
+			//dec		eax
+			//jnz		Loop1xx2
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			TmpEDX += TmpEBX;
+			TmpEDX += 2;
+			TmpEAX--;
+			if (TmpEAX != 0) goto Loop1xx2;
+		Loop1xx3 :
+			//dec		cx
+			//jnz		Loop1xx1
+			//sub		edx, PicPtr
+			//sub		edx, 4
+			//mov		addofs, edx
+			TmpCX--;
+			if (TmpCX != 0) goto Loop1xx1;
+			TmpEDX -= reinterpret_cast<unsigned int>(PicPtr);
+			TmpEDX -= 4;
+			addofs = TmpEDX;
 		}
 		subline = WindY - y;
 		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
@@ -1647,199 +1901,386 @@ void ShowRLChtpal( int x, int y, void* PicPtr, byte* pal )
 		if (x < WindX)
 		{
 			int roff = WindX - x;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		dx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		dx, 0
-					jle		ok1_1
-					cmp		dx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		dx, cx
-					add		esi, ecx
-					add		edi, ecx
-					dec		Acm
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				sub		cx, dx
-					xor		eax, eax
-					mov		ax, dx
-					xor		edx, edx
-					add		esi, eax
-					add		edi, eax
-					ok1_1 : jcxz	Lx21
-					ok1 :
-				mov		ah, [esi]
-					inc		esi
-					mov		al, [edi]
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		Acm
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
+			// BoonXRay 10.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop1 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd1
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine1
+				//xor		edx, edx
+				//xor		ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd1;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine1;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine1 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//add		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI += TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping left code
+				//cmp		dx, 0
+				//jle		ok1_1
+				//cmp		dx, cx
+				//jl		hdraw1
+				if (static_cast<short>(TmpDX) <= 0) goto ok1_1;
+				if (TmpDX < TmpCX) goto hdraw1;
+				//nothing to draw
+				//sub		dx, cx
+				//add		esi, ecx
+				//add		edi, ecx
+				//dec		Acm
+				//jnz		BeginLine1
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpDX -= TmpCX;
+				TmpESI += TmpECX;
+				TmpEDI += TmpECX;
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			hdraw1 :			//draw only small part of line
+				//sub		cx, dx
+				//xor		eax, eax
+				//mov		ax, dx
+				//xor		edx, edx
+				//add		esi, eax
+				//add		edi, eax
+				TmpCX -= TmpDX;
+				TmpEAX = 0;
+				TmpAX = TmpDX;
+				TmpEDX = 0;
+				TmpESI += TmpEAX;
+				TmpEDI += TmpEAX;
+			ok1_1 : 
+				//jcxz	Lx21
+				if (TmpCX == 0) goto Lx21;
+			ok1 :
+				//mov		ah, [esi]
+				//inc		esi
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//stosb
+				//dec		cl
+				//jnz		ok1
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				TmpCL--;
+				if (TmpCL != 0) goto ok1;
+			Lx21 :
+				//dec		Acm
+				//jnz		BeginLine1
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+			NextLine1 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			ScanLineLoopEnd1 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else if (x + PLX >= WindX1)
 		{
 			int roff = WindX1 - x + 1;
 			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		dx, cx
-					add		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		dx, cx
-					jge		ok2
-					//clipping
-					cmp		dx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, dx
-					mov		part, ecx
-					mov		cx, dx
-					jcxz    kkj1_1
-					kkj1 : mov		ah, [esi]
-					inc		esi
-					mov		al, [edi]
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		kkj1
-					kkj1_1 : add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		Acm
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		Acm
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : jcxz	Lx22
-					sub		dx, cx
-					kkj4 : mov		ah, [esi]
-					inc		esi
-					mov		al, [edi]
-					mov		al, [ebx + eax]
-					stosb
-					dec		cl
-					jnz		kkj4
-					Lx22 : dec		Acm
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
+			// BoonXRay 10.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop2 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd2
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine2
+				//xor		edx, edx
+				//xor		ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd2;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine2;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine2 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//add		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI += TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping right code
+				//cmp		dx, cx
+				//jge		ok2
+				if (TmpDX >= TmpCX) goto ok2;
+				//clipping
+				//cmp		dx, 0
+				//jle		ntd2
+				if (static_cast<short>(TmpDX) <= 0) goto ntd2;
+				//partial drawing
+				//sub		cx, dx
+				//mov		part, ecx
+				//mov		cx, dx
+				//jcxz    kkj1_1
+				TmpCX -= TmpDX;
+				part = TmpECX;
+				TmpCX = TmpDX;
+				if (TmpCX == 0) goto kkj1_1;
+			kkj1 : 
+				//mov		ah, [esi]
+				//inc		esi
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//stosb
+				//dec		cl
+				//jnz		kkj1
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				TmpCL--;
+				if (TmpCL != 0) goto kkj1;
+			kkj1_1 : 
+				//add		esi, part
+				//jmp		ntd4
+				TmpESI += part;
+				goto ntd4;
+			ntd2 :			//scanning to the next line
+				//add		esi, ecx
+				TmpESI += TmpECX;
+			ntd4 : 
+				//dec		Acm
+				//jz		NextLine2
+				Acm--;
+				if (Acm != 0) goto NextLine2;
+			ntd22 : 
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				//add		esi, ecx
+				//dec		Acm
+				//jnz		ntd22
+				//jmp		NextLine2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2 + TmpECX;
+				Acm--;
+				if (Acm != 0) goto ntd22;
+				goto NextLine2;
+			ok2 : 
+				//jcxz	Lx22
+				//sub		dx, cx
+				if (TmpCX == 0) goto Lx22;
+				TmpDX -= TmpCX;
+			kkj4 : 
+				//mov		ah, [esi]
+				//inc		esi
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//stosb
+				//dec		cl
+				//jnz		kkj4
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI++;
+				TmpCL--;
+				if (TmpCL != 0) goto kkj4;
+			Lx22 :
+				//dec		Acm
+				//jnz		BeginLine2
+				Acm--;
+				if (Acm != 0) goto BeginLine2;
+			NextLine2 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop2
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop2;
+			ScanLineLoopEnd2 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else
-			__asm
+			// BoonXRay 10.08.2017
+		//__asm
 		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			xor		eax, eax
-			mov		ebx, pal
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		dl, [esi]
-				inc		esi
-				or dl, dl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				add		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				jcxz    Lx2
-				hgaw : mov		ah, [esi]
-				inc		esi
-				mov		al, [edi]
-				mov		al, [ebx + eax]
-				stosb
-				dec		cl
-				jnz		hgaw
-				Lx2 : dec		dl
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
+			//push	esi
+			//push	edi
+			//mov		edi, ScrOfst
+			//mov		esi, PicPtr
+			//add		esi, addofs
+			//xor		ecx, ecx
+			//xor		ebx, ebx
+			//xor		eax, eax
+			//mov		ebx, pal
+			//cld
+			unsigned int TmpEDI = ScrOfst;
+			unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+			unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+			unsigned int PushTmpEDI;
+			TmpEBX = reinterpret_cast<unsigned int>(pal);
+		ScanLineLoop :
+			//cmp		PLY, 0
+			//je		ScanLineLoopEnd
+			//push	edi
+			//mov		dl, [esi]
+			//inc		esi
+			//or dl, dl
+			//jz		NextLine
+			if (PLY == 0) goto ScanLineLoopEnd;
+			PushTmpEDI = TmpEDI;
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			if (TmpDL == 0) goto NextLine;
+		BeginLine : 
+			//mov		cl, [esi]
+			//add		edi, ecx
+			//mov		cl, [esi + 1]
+			//add		esi, 2
+			//jcxz    Lx2
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEDI += TmpECX;
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+			TmpESI += 2;
+			if (TmpCX == 0) goto Lx2;
+		hgaw : 
+			//mov		ah, [esi]
+			//inc		esi
+			//mov		al, [edi]
+			//mov		al, [ebx + eax]
+			//stosb
+			//dec		cl
+			//jnz		hgaw
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI++;
+			TmpCL--;
+			if (TmpCL != 0) goto hgaw;
+		Lx2 : 
+			//dec		dl
+			//jnz		BeginLine
+			TmpDL--;
+			if (TmpDL != 0) goto BeginLine;
+		NextLine : 
+			//pop		edi
+			//add		edi, ScrWidth
+			//dec     PLY
+			//jmp		ScanLineLoop
+			TmpEDI = PushTmpEDI;
+			TmpEDI += ScrWidth;
+			PLY--;
+			goto ScanLineLoop;
+		ScanLineLoopEnd :
+			//pop		edi
+			//pop		esi
+			;
 		}
 	}
 }
@@ -1857,29 +2298,52 @@ void ShowRLCihtpal( int x, int y, void* PicPtr, byte* pal )
 		( ( x < WindX ) || ( x - PLX + 1 >= WindX1 ) || !PLY )) return;
 	if (y < WindY)
 	{
-		__asm
+		// BoonXRay 10.08.2017
+		//__asm
 		{
-			mov		edx, PicPtr
-			add		edx, 4
-			xor eax, eax
-			mov		ecx, WindY
-			sub		ecx, y
-			xor		eax, eax
-			xor		ebx, ebx
-			Loop1xx1 : mov		al, [edx]
-					   inc		edx
-					   or eax, eax
-					   jz		Loop1xx3
-					   Loop1xx2 : mov		bl, [edx + 1]
-								  add		edx, ebx
-								  add		edx, 2
-								  dec		eax
-								  jnz		Loop1xx2
-								  Loop1xx3 : dec		cx
-											 jnz		Loop1xx1
-											 sub		edx, PicPtr
-											 sub		edx, 4
-											 mov		addofs, edx
+			//mov		edx, PicPtr
+			//add		edx, 4
+			//xor eax, eax
+			//mov		ecx, WindY
+			//sub		ecx, y
+			//xor		eax, eax
+			//xor		ebx, ebx
+			unsigned int TmpEDX = reinterpret_cast<unsigned int>(PicPtr) + 4;
+			unsigned int TmpECX = WindY - y;
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned int TmpEAX = 0, TmpEBX = 0;
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpBL = *reinterpret_cast<unsigned char *>(&TmpEBX);
+		Loop1xx1 : 
+			//mov		al, [edx]
+			//inc		edx
+			//or eax, eax
+			//jz		Loop1xx3
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDX);
+			TmpEDX++;
+			if (TmpEAX == 0) goto Loop1xx3;
+		Loop1xx2 : 
+			//mov		bl, [edx + 1]
+			//add		edx, ebx
+			//add		edx, 2
+			//dec		eax
+			//jnz		Loop1xx2
+			TmpBL = *reinterpret_cast<unsigned char *>(TmpEDX + 1);
+			TmpEDX += TmpEBX;
+			TmpEDX += 2;
+			TmpEAX--;
+			if (TmpEAX != 0) goto Loop1xx2;
+		Loop1xx3 : 
+			//dec		cx
+			//jnz		Loop1xx1
+			//sub		edx, PicPtr
+			//sub		edx, 4
+			//mov		addofs, edx
+			TmpCX--;
+			if (TmpCX != 0) goto Loop1xx1;
+			TmpEDX -= reinterpret_cast<unsigned int>(PicPtr);
+			TmpEDX -= 4;
+			addofs = TmpEDX;
 		}
 		subline = WindY - y;
 		ScrOfst = int( ScreenPtr ) + WindY*ScrWidth + x;
@@ -1893,202 +2357,390 @@ void ShowRLCihtpal( int x, int y, void* PicPtr, byte* pal )
 		if (x > WindX1)
 		{
 			int roff = x - WindX1;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop1 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd1
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine1
-					xor		edx, edx
-					xor		ecx, ecx
-					mov		dx, word ptr roff
-					BeginLine1 : mov		cl, [esi]
-					sub		dx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					//sub		bh,cl
-					add		esi, 2
-					//clipping left code
-					cmp		dx, 0
-					jle		ok1_1
-					cmp		dx, cx
-					jl		hdraw1
-					//nothing to draw
-					sub		dx, cx
-					add		esi, ecx
-					sub		edi, ecx
-					dec		Acm
-					jnz		BeginLine1
-					pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					hdraw1 :			//draw only small part of line
-				xor		eax, eax
-					sub		cx, dx
-					mov		ax, dx
-					xor		edx, edx
-					add		esi, eax
-					sub		edi, eax
-					ok1_1 : jcxz	Lx21
-					ok1 : mov		ah, [esi]
-					inc		esi
-					mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		ok1
-					Lx21 : dec		Acm
-					jnz		BeginLine1
-					NextLine1 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop1
-					ScanLineLoopEnd1 :
-				pop		edi
-					pop		esi
+			// BoonXRay 10.08.2017
+			//__asm
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop1 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd1
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine1
+				//xor		edx, edx
+				//xor		ecx, ecx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd1;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine1;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine1 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//sub		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI -= TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping left code
+				//cmp		dx, 0
+				//jle		ok1_1
+				//cmp		dx, cx
+				//jl		hdraw1
+				if (static_cast<short>(TmpDX) <= 0) goto ok1_1;
+				if (TmpDX < TmpCX) goto hdraw1;
+				//nothing to draw
+				//sub		dx, cx
+				//add		esi, ecx
+				//sub		edi, ecx
+				//dec		Acm
+				//jnz		BeginLine1
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpDX -= TmpCX;
+				TmpESI += TmpECX;
+				TmpEDI -= TmpECX;
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			hdraw1 :			//draw only small part of line
+				//xor		eax, eax
+				//sub		cx, dx
+				//mov		ax, dx
+				//xor		edx, edx
+				//add		esi, eax
+				//sub		edi, eax
+				TmpCX -= TmpDX;
+				TmpEAX = 0;
+				TmpAX = TmpDX;
+				TmpEDX = 0;
+				TmpESI += TmpEAX;
+				TmpEDI -= TmpEAX;
+			ok1_1 : 
+				//jcxz	Lx21
+				if (TmpCX == 0) goto Lx21;
+			ok1 : 
+				//mov		ah, [esi]
+				//inc		esi
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				//jnz		ok1
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				if (TmpCL != 0) goto ok1;
+			Lx21 : 
+				//dec		Acm
+				//jnz		BeginLine1
+				Acm--;
+				if (Acm != 0) goto BeginLine1;
+			NextLine1 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop1
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop1;
+			ScanLineLoopEnd1 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else if (x - PLX + 1 < WindX)
 		{
 			int roff = x - WindX + 1;
 			int part;
-			__asm {
-				push	esi
-				push	edi
-				mov		edi, ScrOfst
-				mov		esi, PicPtr
-				add		esi, addofs
-				xor		ecx, ecx
-				xor		eax, eax
-				mov		ebx, pal
-				cld
-				ScanLineLoop2 :
-				cmp		PLY, 0
-					je		ScanLineLoopEnd2
-					push	edi
-					mov		dl, [esi]
-					mov		Acm, dl
-					inc		esi
-					or dl, dl
-					jz		NextLine2
-					xor		ecx, ecx
-					xor		edx, edx
-					mov		dx, word ptr roff
-					BeginLine2 : mov		cl, [esi]
-					sub		dx, cx
-					sub		edi, ecx
-					mov		cl, [esi + 1]
-					add		esi, 2
-					//clipping right code
-					cmp		dx, cx
-					jge		ok2
-					//clipping
-					cmp		dx, 0
-					jle		ntd2
-					//partial drawing
-					sub		cx, dx
-					mov		part, ecx
-					mov		cx, dx
-					jcxz	lxsd1_1
-					lxsd1 : mov		ah, [esi]
-					inc		esi
-					mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		lxsd1
-					lxsd1_1 : add		esi, part
-					jmp		ntd4
-					ntd2 :			//scanning to the next line
-				add		esi, ecx
-					ntd4 : dec		Acm
-					jz		NextLine2
-					ntd22 : mov		cl, [esi + 1]
-					add		esi, 2
-					add		esi, ecx
-					dec		Acm
-					jnz		ntd22
-					jmp		NextLine2
-					ok2 : jcxz	Lx22
-					sub		dx, cx
-					lkfr1 : mov		ah, [esi]
-					inc		esi
-					mov		al, [edi]
-					mov		al, [ebx + eax]
-					mov[edi], al
-					dec		edi
-					dec		cl
-					jnz		lkfr1
-					Lx22 : dec		Acm
-					jnz		BeginLine2
-					NextLine2 : pop		edi
-					add		edi, ScrWidth
-					dec     PLY
-					jmp		ScanLineLoop2
-					ScanLineLoopEnd2 :
-				pop		edi
-					pop		esi
+			// BoonXRay 10.08.2017
+			//__asm 
+			{
+				//push	esi
+				//push	edi
+				//mov		edi, ScrOfst
+				//mov		esi, PicPtr
+				//add		esi, addofs
+				//xor		ecx, ecx
+				//xor		eax, eax
+				//mov		ebx, pal
+				//cld
+				unsigned int TmpEDI = ScrOfst;
+				unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+				unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+				unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+				unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+				unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+				//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+				unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+				unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+				unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+				unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+				unsigned int PushTmpEDI;
+				TmpEBX = reinterpret_cast<unsigned int>(pal);
+			ScanLineLoop2 :
+				//cmp		PLY, 0
+				//je		ScanLineLoopEnd2
+				//push	edi
+				//mov		dl, [esi]
+				//mov		Acm, dl
+				//inc		esi
+				//or dl, dl
+				//jz		NextLine2
+				//xor		ecx, ecx
+				//xor		edx, edx
+				//mov		dx, word ptr roff
+				if (PLY == 0) goto ScanLineLoopEnd2;
+				PushTmpEDI = TmpEDI;
+				TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+				Acm = TmpDL;
+				TmpESI++;
+				if (TmpDL == 0) goto NextLine2;
+				TmpEDX = 0;
+				TmpECX = 0;
+				TmpDX = roff;
+			BeginLine2 : 
+				//mov		cl, [esi]
+				//sub		dx, cx
+				//sub		edi, ecx
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpDX -= TmpCX;
+				TmpEDI -= TmpECX;
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2;
+				//clipping right code
+				//cmp		dx, cx
+				//jge		ok2
+				if (TmpDX >= TmpCX) goto ok2;
+				//clipping
+				//cmp		dx, 0
+				//jle		ntd2
+				if (static_cast<short>(TmpDX) <= 0) goto ntd2;
+				//partial drawing
+				//sub		cx, dx
+				//mov		part, ecx
+				//mov		cx, dx
+				//jcxz	lxsd1_1
+				TmpCX -= TmpDX;
+				part = TmpECX;
+				TmpCX = TmpDX;
+				if (TmpCX == 0) goto lxsd1_1;
+			lxsd1 : 
+				//mov		ah, [esi]
+				//inc		esi
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				//jnz		lxsd1
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				if (TmpCL != 0) goto lxsd1;
+			lxsd1_1 : 
+				//add		esi, part
+				//jmp		ntd4
+				TmpESI += part;
+				goto ntd4;
+			ntd2 :			//scanning to the next line
+				//add		esi, ecx
+				TmpESI += TmpECX;
+			ntd4 : 
+				//dec		Acm
+				//jz		NextLine2
+				Acm--;
+				if (Acm != 0) goto NextLine2;
+			ntd22 : 
+				//mov		cl, [esi + 1]
+				//add		esi, 2
+				//add		esi, ecx
+				//dec		Acm
+				//jnz		ntd22
+				//jmp		NextLine2
+				TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+				TmpESI += 2 + TmpECX;
+				Acm--;
+				if (Acm != 0) goto ntd22;
+				goto NextLine2;
+			ok2 : 
+				//jcxz	Lx22
+				//sub		dx, cx
+				if (TmpCX == 0) goto Lx22;
+				TmpDX -= TmpCX;
+			lkfr1 : 
+				//mov		ah, [esi]
+				//inc		esi
+				//mov		al, [edi]
+				//mov		al, [ebx + eax]
+				//mov[edi], al
+				//dec		edi
+				//dec		cl
+				//jnz		lkfr1
+				TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+				TmpESI++;
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+				TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+				*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+				TmpEDI--;
+				TmpCL--;
+				if (TmpCL != 0) goto lkfr1;
+			Lx22 : 
+				//dec		Acm
+				//jnz		BeginLine2
+				Acm--;
+				if (Acm != 0) goto BeginLine2;
+			NextLine2 : 
+				//pop		edi
+				//add		edi, ScrWidth
+				//dec     PLY
+				//jmp		ScanLineLoop2
+				TmpEDI = PushTmpEDI;
+				TmpEDI += ScrWidth;
+				PLY--;
+				goto ScanLineLoop2;
+			ScanLineLoopEnd2 :
+				//pop		edi
+				//pop		esi
+				;
 			};
 		}
 		else
-			__asm
+			// BoonXRay 10.08.2017
+		//__asm
 		{
-			push	esi
-			push	edi
-			mov		edi, ScrOfst
-			mov		esi, PicPtr
-			add		esi, addofs
-			xor		ecx, ecx
-			xor		ebx, ebx
-			xor		eax, eax
-			mov		ebx, pal
-			cld
-			ScanLineLoop :
-			cmp		PLY, 0
-				je		ScanLineLoopEnd
-				push	edi
-				mov		dl, [esi]
-				inc		esi
-				or dl, dl
-				jz		NextLine
-				BeginLine : mov		cl, [esi]
-				sub		edi, ecx
-				mov		cl, [esi + 1]
-				add		esi, 2
-				jcxz	Lx2
-				ghte : mov		ah, [esi]
-				inc		esi
-				mov		al, [edi]
-				mov		al, [eax + ebx]
-				mov[edi], al
-				dec		edi
-				dec		cl
-				jnz		ghte
-				Lx2 : dec		dl
-				jnz		BeginLine
-				NextLine : pop		edi
-				add		edi, ScrWidth
-				dec     PLY
-				jmp		ScanLineLoop
-				ScanLineLoopEnd :
-			pop		edi
-				pop		esi
+			//push	esi
+			//push	edi
+			//mov		edi, ScrOfst
+			//mov		esi, PicPtr
+			//add		esi, addofs
+			//xor		ecx, ecx
+			//xor		ebx, ebx
+			//xor		eax, eax
+			//mov		ebx, pal
+			//cld
+			unsigned int TmpEDI = ScrOfst;
+			unsigned int TmpESI = reinterpret_cast<unsigned int>(PicPtr) + addofs;
+			unsigned int TmpEAX = 0, TmpEBX = 0, TmpECX = 0, TmpEDX = 0;
+			unsigned short & TmpAX = *reinterpret_cast<unsigned short *>(&TmpEAX);
+			unsigned char & TmpAL = *reinterpret_cast<unsigned char *>(&TmpEAX);
+			unsigned char & TmpAH = *(reinterpret_cast<unsigned char *>(&TmpEAX) + 1);
+			//unsigned short & TmpBX = *reinterpret_cast<unsigned short *>(&TmpEBX);
+			unsigned char & TmpCL = *reinterpret_cast<unsigned char *>(&TmpECX);
+			unsigned short & TmpCX = *reinterpret_cast<unsigned short *>(&TmpECX);
+			unsigned char & TmpDL = *reinterpret_cast<unsigned char *>(&TmpEDX);
+			unsigned short & TmpDX = *reinterpret_cast<unsigned short *>(&TmpEDX);
+			unsigned int PushTmpEDI;
+			TmpEBX = reinterpret_cast<unsigned int>(pal);
+		ScanLineLoop :
+			//cmp		PLY, 0
+			//je		ScanLineLoopEnd
+			//push	edi
+			//mov		dl, [esi]
+			//inc		esi
+			//or dl, dl
+			//jz		NextLine
+			if (PLY == 0) goto ScanLineLoopEnd;
+			PushTmpEDI = TmpEDI;
+			TmpDL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			if (TmpDL == 0) goto NextLine;
+		BeginLine : 
+			//mov		cl, [esi]
+			//sub		edi, ecx
+			//mov		cl, [esi + 1]
+			//add		esi, 2
+			//jcxz	Lx2
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpEDI -= TmpECX;
+			TmpCL = *reinterpret_cast<unsigned char *>(TmpESI + 1);
+			TmpESI += 2;
+			if (TmpCX == 0) goto Lx2;
+		ghte : 
+			//mov		ah, [esi]
+			//inc		esi
+			//mov		al, [edi]
+			//mov		al, [eax + ebx]
+			//mov[edi], al
+			//dec		edi
+			//dec		cl
+			//jnz		ghte
+			TmpAH = *reinterpret_cast<unsigned char *>(TmpESI);
+			TmpESI++;
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEDI);
+			TmpAL = *reinterpret_cast<unsigned char *>(TmpEBX + TmpEAX);
+			*reinterpret_cast<unsigned char *>(TmpEDI) = TmpAL;
+			TmpEDI--;
+			TmpCL--;
+			if (TmpCL != 0) goto ghte;
+		Lx2 : 
+			//dec		dl
+			//jnz		BeginLine
+			TmpDL--;
+			if (TmpDL != 0) goto BeginLine;
+		NextLine : 
+			//pop		edi
+			//add		edi, ScrWidth
+			//dec     PLY
+			//jmp		ScanLineLoop
+			TmpEDI = PushTmpEDI;
+			TmpEDI += ScrWidth;
+			PLY--;
+			goto ScanLineLoop;
+		ScanLineLoopEnd :
+			//pop		edi
+			//pop		esi
+			;
 		}
 	}
 }
@@ -2151,51 +2803,6 @@ void ShowRLCip7( int x, int y, void* PicPtr )
 	ShowRLCipal( x, y, PicPtr, PAL7 );
 }
 
-extern byte fog[8192 + 1024];
-extern byte wfog[8192];
-extern byte yfog[8192];
-extern byte rfog[8192];
-extern byte trans8[65536];
-
-void ShowRLCShadow( int x, int y, void* PicPtr )
-{
-	ShowRLCfonpal( x, y, PicPtr, fog + 4096 );
-}
-void ShowRLCiShadow( int x, int y, void* PicPtr )
-{
-	ShowRLCifonpal( x, y, PicPtr, fog + 4096 );
-}
-void ShowRLCWhite( int x, int y, void* PicPtr )
-{
-	ShowRLCfonpal( x, y, PicPtr, wfog + 1024 );
-}
-void ShowRLCDarkN( int x, int y, void* PicPtr, int N )
-{
-	ShowRLCpal( x, y, PicPtr, wfog + ( N << 8 ) );
-};
-void ShowRLCiDarkN( int x, int y, void* PicPtr, int N )
-{
-	ShowRLCipal( x, y, PicPtr, wfog + ( N << 8 ) );
-};
-void ShowRLCRedN( int x, int y, void* PicPtr, int N )
-{
-	ShowRLCpal( x, y, PicPtr, yfog + ( N << 8 ) );
-};
-void ShowRLCiRedN( int x, int y, void* PicPtr, int N )
-{
-	ShowRLCipal( x, y, PicPtr, yfog + ( N << 8 ) );
-};
-void ShowRLCItemDarkN( int x, int y, lpRLCTable lprt, int n, int Ints )
-{
-	if (n < 4096)
-	{
-		ShowRLCDarkN( x, y, (void*) ( ( *lprt )->OfsTable[n] ), Ints );
-	}
-	else
-	{
-		ShowRLCiDarkN( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ), Ints );
-	};
-};
 void ShowRLCItemPal( int x, int y, lpRLCTable lprt, int n, byte* Pal )
 {
 	if (n < 4096)
@@ -2218,61 +2825,6 @@ void ShowRLCItemGrad( int x, int y, lpRLCTable lprt, int n, byte* Pal )
 		ShowRLCihtpal( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ), Pal );
 	};
 };
-void ShowRLCItemRedN( int x, int y, lpRLCTable lprt, int n, int Ints )
-{
-	if (n < 4096)
-	{
-		ShowRLCRedN( x, y, (void*) ( ( *lprt )->OfsTable[n] ), Ints );
-	}
-	else
-	{
-		ShowRLCiRedN( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ), Ints );
-	};
-};
-void ShowRLCWFog( int x, int y, void* PicPtr )
-{
-	ShowRLChtpal( x, y, PicPtr, wfog + 1024 );
-}
-void ShowRLCiWhite( int x, int y, void* PicPtr )
-{
-	ShowRLCifonpal( x, y, PicPtr, wfog + 1024 );
-}
-void ShowRLCiWFog( int x, int y, void* PicPtr )
-{
-	ShowRLCihtpal( x, y, PicPtr, wfog + 1024 );
-}
-void ShowRLCiTrans8( int x, int y, void* PicPtr )
-{
-	ShowRLCihtpal( x, y, PicPtr, trans8 );
-}
-void ShowRLCTrans8( int x, int y, void* PicPtr )
-{
-	ShowRLChtpal( x, y, PicPtr, trans8 );
-}
-void ShowRLCDark( int x, int y, void* PicPtr )
-{
-	ShowRLChtpal( x, y, PicPtr, fog + 1024 );
-}
-void ShowRLCiDark( int x, int y, void* PicPtr )
-{
-	ShowRLCihtpal( x, y, PicPtr, fog + 1024 );
-}
-void ShowRLCBlue( int x, int y, void* PicPtr )
-{
-	ShowRLChtpal( x, y, PicPtr, rfog + 2048 );
-}
-void ShowRLCiBlue( int x, int y, void* PicPtr )
-{
-	ShowRLCihtpal( x, y, PicPtr, rfog + 2048 );
-}
-void ShowRLCFire( int x, int y, void* PicPtr )
-{
-	ShowRLChtpal( x, y, PicPtr, yfog );
-}
-void ShowRLCiFire( int x, int y, void* PicPtr )
-{
-	ShowRLCihtpal( x, y, PicPtr, yfog );
-}
 
 //Load rlc file, allocate and fill provided RLCTable
 bool LoadRLC( LPCSTR lpFileName, RLCTable *RLCtbl )
@@ -2385,62 +2937,6 @@ void ShowRLCItem( int x, int y, lpRLCTable lprt, int n, byte nt )
 	}
 }
 
-void ShowRLCItemTrans8( int x, int y, lpRLCTable lprt, int n )
-{
-	if (n < 4096)
-	{
-		ShowRLCTrans8( x, y, (void*) ( ( *lprt )->OfsTable[n] ) );
-	}
-	else
-	{
-		ShowRLCiTrans8( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ) );
-	};
-};
-
-void ShowRLCItemMutno( int x, int y, lpRLCTable lprt, int n )
-{
-	if (n < 4096)
-	{
-		ShowRLCWFog( x, y, (void*) ( ( *lprt )->OfsTable[n] ) );
-	}
-	else
-	{
-		ShowRLCiWFog( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ) );
-	};
-};
-void ShowRLCItemDark( int x, int y, lpRLCTable lprt, int n )
-{
-	if (n < 4096)
-	{
-		ShowRLCDark( x, y, (void*) ( ( *lprt )->OfsTable[n] ) );
-	}
-	else
-	{
-		ShowRLCiDark( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ) );
-	};
-};
-void ShowRLCItemBlue( int x, int y, lpRLCTable lprt, int n )
-{
-	if (n < 4096)
-	{
-		ShowRLCBlue( x, y, (void*) ( ( *lprt )->OfsTable[n] ) );
-	}
-	else
-	{
-		ShowRLCiBlue( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ) );
-	};
-};
-void ShowRLCItemFired( int x, int y, lpRLCTable lprt, int n )
-{
-	if (n < 4096)
-	{
-		ShowRLCFire( x, y, (void*) ( ( *lprt )->OfsTable[n] ) );
-	}
-	else
-	{
-		ShowRLCiFire( x, y, (void*) ( ( *lprt )->OfsTable[n - 4096] ) );
-	};
-};
 int GetRLCWidth( RLCTable lpr, byte n )
 {
 	int GPID = int( lpr );
@@ -2661,24 +3157,6 @@ int GetRLCStrWidth( char* str, lpRLCFont lpf )
 	};
 	return L;
 };
-void ShowShadString( int x, int y, LPCSTR lps, lpRLCFont lpf )
-{
-	if (lps == nullptr) return;
-	byte	ch;
-	int		i = 0;
-	do
-	{
-		ch = lps[i];
-		if (ch != 0)
-		{
-			ShowRLCItem( x, y, &( lpf->RLC ), lpf->FirstSymbol + ch, 0 );
-			int LL = 1;
-			x += GetRLCWidthUNICODE( lpf->RLC, (byte*) ( lps + i ), &LL );
-			i += LL - 1;
-		}
-		i++;
-	} while (ch - 0);
-}
 
 void LoadPalettes()//IMPORTANT: load color palettes for ???
 {

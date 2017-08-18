@@ -7,8 +7,6 @@ DWORD	isiCalcHash(LPSTR lpszFileName);
 
 void	isiDecryptMem(LPBYTE lpbBuffer, DWORD dwSize, BYTE dbKey);
 
-void	isiEncryptMem(LPBYTE lpbBuffer, DWORD dwSize, BYTE dbKey);
-
 BOOL	isiFileExists(LPSTR lpszFileName);
 
 #endif //_MASKS_H_INCLUDED_

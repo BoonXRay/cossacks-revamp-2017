@@ -4311,7 +4311,7 @@ void GP_ShowMaskedPictOverpoint( int x, int y, GP_Header* Pic, byte* CData, byte
 			//sub		eax, edi
 			TmpEAX -= TmpEDI;
 			//inc		edi
-			TmpEAX++;
+			TmpEDI++;
 			//dec		cl
 			TmpCL--;
 			//jnz		SH0_0

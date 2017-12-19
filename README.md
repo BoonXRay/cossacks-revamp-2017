@@ -4,6 +4,8 @@
 
 <br/>
 
+Further development of the project: [CossacksBTW](https://github.com/BoonXRay/CossacksBTW)
+
 This project is based on [cossacks-revamp-2017](https://github.com/ereb-thanatos/cossacks-revamp-2017). Many thanks to the author for his efforts!
 The purpose of this project is to rewrite assembly code in C/C++ code. Changes in game logic are not provided. Some unused program code was deleted. The solution is meant to be build in Visual Studio 2015 or above.
 
@@ -14,6 +16,8 @@ The purpose of this project is to rewrite assembly code in C/C++ code. Changes i
 # Казаки: Снова Война 1.42
 
 <br/>
+
+Дальнейшее развитие проекта: [CossacksBTW](https://github.com/BoonXRay/CossacksBTW)
 
 Данный проект базируется на [cossacks-revamp-2017](https://github.com/ereb-thanatos/cossacks-revamp-2017). Большое спасибо автору за старания!
 Цель этого проекта переписать код на ассемблере в код на языке C/C++. Изменения игровой логики не предусмотрены. Также удалена часть неиспользуемого программного кода.

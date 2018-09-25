@@ -1245,7 +1245,7 @@ void ShowRLCpal( int x, int y, void* PicPtr, byte* pal )
 				//dec		Acm
 				//jz		NextLine2
 				Acm--;
-				if (Acm != 0) goto NextLine2;
+				if (Acm == 0) goto NextLine2;
 			ntd22 : 
 				//mov		cl, [esi + 1]
 				//add		esi, 2
